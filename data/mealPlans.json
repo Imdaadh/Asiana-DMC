@@ -1,0 +1,6 @@
+[
+  { "id": "ro", "name": "Room Only" },
+  { "id": "bb", "name": "Bed & Breakfast" },
+  { "id": "hb", "name": "Half Board" },
+  { "id": "fb", "name": "Full Board" }
+]

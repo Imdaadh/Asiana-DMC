@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Trip Basics — Costing Console</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app" id="chrome-mount"></div>
+
+<script src="assets/app.js"></script>
+<script>
+const itinerary = ensureItinerary();
+renderChrome('chrome-mount', { activeStep: 1, breadcrumbSub: breadcrumbFor(itinerary) });
+
+const content = document.getElementById('page-content');
+const tb = itinerary.tripBasics;
+
+content.innerHTML = `
+  <div>
+    <h1 class="page-title">Start a new costing</h1>
+    <p class="page-sub">Enter the client's trip basics to begin. This becomes the header of the itinerary and controls day-count defaults in later stages.</p>
+
+    <div class="card">
+      <div class="card-title">Client &amp; Trip Details</div>
+      <div class="field-grid">
+        <div class="field span-2">
+          <label>Client Name</label>
+          <input id="f-clientName" value="${tb.clientName || ''}" placeholder="e.g. Priyanshu Aggarwal">
+        </div>
+        <div class="field">
+          <label>Nationality</label>
+          <select id="f-nationality">
+            ${['Indian','Sri Lankan','British','American','Other'].map(n =>
+              `<option ${tb.nationality === n ? 'selected' : ''}>${n}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Currency for Display</label>
+          <select disabled><option>USD</option></select>
+        </div>
+
+        <div class="field">
+          <label>Arrival Date</label>
+          <input type="date" id="f-arrival" value="${tb.arrivalDate || ''}">
+        </div>
+        <div class="field">
+          <label>Departure Date</label>
+          <input type="date" id="f-departure" value="${tb.departureDate || ''}">
+        </div>
+        <div class="field">
+          <label>Nights / Days</label>
+          <div class="readonly-pill" id="f-nightsdays">—</div>
+        </div>
+        <div class="field"></div>
+
+        <div class="field">
+          <label>Adults</label>
+          <input type="number" min="1" id="f-adults" value="${tb.adults}">
+        </div>
+        <div class="field">
+          <label>Children</label>
+          <input type="number" min="0" id="f-children" value="${tb.children}">
+        </div>
+        <div class="field span-2">
+          <label>Notes for Internal Reference</label>
+          <input id="f-notes" value="${tb.notes || ''}" placeholder="Optional">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn ghost" id="btn-draft">Save Draft</button>
+        <button class="btn primary" id="btn-continue">Save &amp; Continue to Hotel Costing →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="ledger">
+    <div class="ledger-head">
+      <div class="t">Costing Ledger</div>
+      <div class="s">Builds up automatically as you progress</div>
+    </div>
+    <div class="ledger-body">
+      <div class="ledger-section">
+        <div class="ledger-section-title">Trip Basics</div>
+        <div class="ledger-line"><span class="k">Client</span><span class="v" id="l-client">—</span></div>
+        <div class="ledger-line"><span class="k">Pax</span><span class="v" id="l-pax">—</span></div>
+        <div class="ledger-line"><span class="k">Duration</span><span class="v" id="l-duration">—</span></div>
+      </div>
+      <div class="ledger-section">
+        <div class="ledger-section-title">Accommodation</div>
+        <div class="ledger-line muted"><span class="k">Not started yet</span><span class="v">—</span></div>
+      </div>
+      <div class="ledger-section">
+        <div class="ledger-section-title">Transportation</div>
+        <div class="ledger-line muted"><span class="k">Not started yet</span><span class="v">—</span></div>
+      </div>
+      <div class="ledger-section">
+        <div class="ledger-section-title">Pricing</div>
+        <div class="ledger-line muted"><span class="k">Not calculated yet</span><span class="v">—</span></div>
+      </div>
+    </div>
+  </div>
+`;
+
+function updateLedgerPreview() {
+  const clientName = document.getElementById('f-clientName').value || '—';
+  const adults = Number(document.getElementById('f-adults').value) || 0;
+  const children = Number(document.getElementById('f-children').value) || 0;
+  const arrival = document.getElementById('f-arrival').value;
+  const departure = document.getElementById('f-departure').value;
+  const { nights, days } = nightsDaysBetween(arrival, departure);
+
+  document.getElementById('l-client').textContent = clientName;
+  document.getElementById('l-pax').textContent = `${adults} Adult${adults===1?'':'s'}${children ? ' + ' + children + ' Child' + (children===1?'':'ren') : ''}`;
+  document.getElementById('l-duration').textContent = nights ? `${nights}N / ${days}D` : '—';
+  document.getElementById('f-nightsdays').textContent = nights ? `${nights}N  /  ${days}D` : 'Pick dates';
+}
+
+['f-clientName','f-adults','f-children','f-arrival','f-departure'].forEach(id => {
+  document.getElementById(id).addEventListener('input', updateLedgerPreview);
+});
+updateLedgerPreview();
+
+function collectForm() {
+  return {
+    clientName: document.getElementById('f-clientName').value,
+    nationality: document.getElementById('f-nationality').value,
+    arrivalDate: document.getElementById('f-arrival').value,
+    departureDate: document.getElementById('f-departure').value,
+    adults: Number(document.getElementById('f-adults').value) || 1,
+    children: Number(document.getElementById('f-children').value) || 0,
+    notes: document.getElementById('f-notes').value,
+  };
+}
+
+document.getElementById('btn-draft').addEventListener('click', () => {
+  const it = getItinerary();
+  it.tripBasics = collectForm();
+  saveItinerary(it);
+  toast('Draft saved.');
+});
+
+document.getElementById('btn-continue').addEventListener('click', () => {
+  const it = getItinerary();
+  it.tripBasics = collectForm();
+  if (!it.tripBasics.clientName.trim()) {
+    document.getElementById('f-clientName').classList.add('error');
+    toast('Client name is required.');
+    return;
+  }
+  saveItinerary(it);
+  window.location.href = 'hotel-costing.html';
+});
+</script>
+</body>
+</html>

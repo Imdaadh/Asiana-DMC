@@ -1,0 +1,14 @@
+[
+  { "name": "Pinnawala Elephant Orphanage", "priceUsd": 10 },
+  { "name": "Botanical Gardens", "priceUsd": 10 },
+  { "name": "Temple of the Tooth", "priceUsd": 8 },
+  { "name": "Hakgala Garden", "priceUsd": 10 },
+  { "name": "Gregory's Lake", "priceUsd": 5 },
+  { "name": "Turtle Centre", "priceUsd": 5 },
+  { "name": "Yala Jeep Safari", "priceUsd": 60 },
+  { "name": "Ella Train Ride", "priceUsd": 25 },
+  { "name": "Madu Boat Ride", "priceUsd": 5 },
+  { "name": "Fish Spa", "priceUsd": 5 },
+  { "name": "Water Sports (3 activities)", "priceUsd": 25 },
+  { "name": "Lotus Tower", "priceUsd": 20 }
+]

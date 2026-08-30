@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Itinerary Preview — Costing Console</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  /* This page renders the client-facing document, not the console chrome —
+     deliberately styled apart from the sidebar/indigo console UI. */
+  body { background: #E9EBF0; }
+  .toolbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #14123A; color: #fff; padding: 12px 24px;
+  }
+  .toolbar .left { display: flex; align-items: center; gap: 14px; font-size: 13px; color: #C7C3F0; }
+  .toolbar .left a { color: #fff; font-weight: 600; }
+  .toolbar .actions { display: flex; gap: 10px; }
+  .toolbar button {
+    border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .toolbar .btn-print { background: #4338CA; color: #fff; border: none; }
+  .toolbar .btn-back { background: transparent; color: #C7C3F0; border: 1.5px solid #423B7A; }
+
+  .sheet-wrap { max-width: 840px; margin: 28px auto 60px; }
+  .sheet {
+    background: #fff; border-radius: 10px; box-shadow: 0 8px 24px rgba(15,23,42,0.10);
+    padding: 48px 56px; color: #1A1A2E;
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.5;
+  }
+  .doc-title { text-align: center; font-size: 22px; font-weight: 700; letter-spacing: 0.02em; margin: 0 0 4px; }
+  .doc-sub { text-align: center; font-size: 13px; color: #555; margin: 0 0 28px; font-family: -apple-system, sans-serif; }
+
+  .section { margin: 26px 0; }
+  .section-title {
+    font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    color: #2A2A5A; border-bottom: 1.5px solid #D8D8E8; padding-bottom: 6px; margin-bottom: 14px;
+    font-family: -apple-system, sans-serif;
+  }
+
+  .day { margin-bottom: 16px; }
+  .day-head { font-weight: 700; font-size: 14.5px; color: #14123A; }
+  .day-desc { font-size: 13.5px; margin: 4px 0 4px; }
+  .day-overnight { font-size: 12.5px; font-style: italic; color: #444; }
+
+  table.doc-table { width: 100%; border-collapse: collapse; font-family: -apple-system, sans-serif; font-size: 13px; }
+  table.doc-table th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.03em; color: #555;
+    border-bottom: 1.5px solid #333; padding: 6px 8px;
+  }
+  table.doc-table td { padding: 7px 8px; border-bottom: 1px solid #E5E5EE; }
+
+  .cost-line { font-family: -apple-system, sans-serif; }
+  .cost-headline { font-size: 13px; font-weight: 700; background: #FEF9C3; display: inline-block; padding: 3px 8px; border-radius: 4px; }
+  .cost-amount { font-size: 15px; font-weight: 700; margin-top: 6px; }
+  .breakdown-row { display: flex; gap: 32px; margin-top: 6px; }
+
+  .two-col { display: flex; gap: 40px; font-family: -apple-system, sans-serif; font-size: 13px; }
+  .two-col > div { flex: 1; }
+  .two-col h4 { font-size: 12.5px; text-transform: uppercase; letter-spacing: 0.03em; color: #2A2A5A; margin: 0 0 8px; }
+  ul.doc-list { margin: 0; padding-left: 18px; }
+  ul.doc-list li { margin-bottom: 5px; }
+
+  .policy-row { display: flex; justify-content: space-between; font-family: -apple-system, sans-serif; font-size: 13px; padding: 5px 0; border-bottom: 1px solid #EEE; }
+
+  .footer { margin-top: 36px; padding-top: 16px; border-top: 1.5px solid #D8D8E8; text-align: center; font-family: -apple-system, sans-serif; }
+  .footer .placeholder { font-size: 15px; font-weight: 800; color: #4338CA; letter-spacing: 0.02em; }
+  .footer .note { font-size: 11px; color: #94A3B8; margin-top: 4px; }
+
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; }
+    .sheet-wrap { margin: 0; max-width: none; }
+    .sheet { box-shadow: none; border-radius: 0; padding: 0.4in 0.5in; }
+    @page { margin: 0.5in; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar no-print">
+  <div class="left">
+    <a href="pricing-summary.html">&larr; Back to Pricing Summary</a>
+    <span>Itinerary Preview — this is the client-facing document</span>
+  </div>
+  <div class="actions">
+    <button class="btn-print" id="btn-print">Print / Save as PDF</button>
+  </div>
+</div>
+
+<div class="sheet-wrap">
+  <div class="sheet" id="doc"></div>
+</div>
+
+<script src="assets/app.js"></script>
+<script>
+(async function () {
+  const itinerary = ensureItinerary();
+  if (!itinerary.tripBasics.clientName || itinerary.hotels.length === 0 || itinerary.transport.mileageSegments.length === 0) {
+    window.location.href = 'trip-basics.html';
+    return;
+  }
+
+  const [cfg, tourTemplates, inclExcl, entranceFees] = await Promise.all([
+    loadAllConfig(),
+    loadJSON('data/tourTemplates.json'),
+    loadJSON('data/inclusionsExclusions.json'),
+    loadJSON('data/entranceFees.json'),
+  ]);
+
+  const pricing = computePricing(itinerary, cfg.vehicles, cfg.pricingSettings);
+  const { nights, days: totalDays } = nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate);
+  const dayPlan = buildItineraryDays(itinerary, tourTemplates);
+  const pax = pricing.pax;
+  const repHotel = itinerary.hotels[0] || {};
+
+  const paxLabel = [
+    `${itinerary.tripBasics.adults} Adult${itinerary.tripBasics.adults === 1 ? '' : 's'}`,
+    itinerary.tripBasics.children ? `${itinerary.tripBasics.children} Child${itinerary.tripBasics.children === 1 ? '' : 'ren'}` : null,
+  ].filter(Boolean).join(' + ') + ` – ${itinerary.tripBasics.nationality} Nationals`;
+
+  const mode = itinerary.pricing.displayMode || 'perPerson';
+  const costAmountHtml = mode === 'perPerson'
+    ? `<div class="cost-amount">${fmtUsd(pricing.perPerson)} per person sharing a ${repHotel.occupancy || ''} Room x ${pax} pax (${repHotel.rooms || ''} ${repHotel.occupancy || ''} Room${repHotel.rooms === 1 ? '' : 's'})</div>`
+    : `<div class="breakdown-row">
+         <div><b>Accommodation:</b> ${fmtUsd(pricing.accommodation * (1 + pricing.markupPercent / 100))}</div>
+         <div><b>Transportation:</b> ${fmtUsd(pricing.transport.subtotal * (1 + pricing.markupPercent / 100))}</div>
+         <div><b>Grand Total:</b> ${fmtUsd(pricing.grandTotal)}</div>
+       </div>`;
+
+  const hotelRows = itinerary.hotels.map(h => `
+    <tr>
+      <td>${h.cityName}</td>
+      <td>${h.nights}</td>
+      <td>${h.hotelName} (${h.star}★)</td>
+      <td>${h.occupancy} · ${h.category}</td>
+    </tr>`).join('');
+
+  const dayHtml = dayPlan.map(d => `
+    <div class="day">
+      <div class="day-head">Day ${d.dayNum} – ${fmtDayDate(d.date)} | ${d.route}</div>
+      <div class="day-desc">${d.description}</div>
+      ${d.overnightCity ? `<div class="day-overnight">Overnight Stay: ${d.overnightCity}</div>` : ''}
+    </div>`).join('');
+
+  const entranceFeeRows = entranceFees.map(f => `
+    <tr><td>${f.name}</td><td>$${f.priceUsd}</td></tr>`).join('');
+
+  const cancellationRows = inclExcl.cancellationPolicy.map(p => `
+    <div class="policy-row"><span>${p.window}</span><span><b>${p.charge}</b></span></div>`).join('');
+
+  document.getElementById('doc').innerHTML = `
+    <div class="doc-title">SRI LANKA ITINERARY ${nights}N–${totalDays}D</div>
+    <div class="doc-sub">Prepared for ${itinerary.tripBasics.clientName} · ${itinerary.tripBasics.arrivalDate} to ${itinerary.tripBasics.departureDate}</div>
+
+    <div class="section">
+      <div class="section-title">Day-by-Day Itinerary</div>
+      ${dayHtml}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Hotels</div>
+      <table class="doc-table">
+        <thead><tr><th>City</th><th>Nights</th><th>Hotel</th><th>Room</th></tr></thead>
+        <tbody>${hotelRows}</tbody>
+      </table>
+    </div>
+
+    <div class="section cost-line">
+      <div class="section-title">Cost</div>
+      <div class="cost-headline">${paxLabel}</div>
+      ${costAmountHtml}
+    </div>
+
+    <div class="section two-col">
+      <div>
+        <h4>Cost Includes</h4>
+        <ul class="doc-list">${inclExcl.includes.map(i => `<li>${i}</li>`).join('')}</ul>
+      </div>
+      <div>
+        <h4>Cost Excludes</h4>
+        <ul class="doc-list">${inclExcl.excludes.map(i => `<li>${i}</li>`).join('')}</ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Entrance Fees (per person)</div>
+      <table class="doc-table">
+        <thead><tr><th>Attraction</th><th>Price</th></tr></thead>
+        <tbody>${entranceFeeRows}</tbody>
+      </table>
+    </div>
+
+    <div class="section two-col">
+      <div>
+        <h4>Check-in / Check-out</h4>
+        <ul class="doc-list">
+          <li>Check-in time at all hotels is ${inclExcl.checkInCheckOut.checkIn}.</li>
+          <li>Check-out time at all hotels is ${inclExcl.checkInCheckOut.checkOut}.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Important Note</h4>
+        <ul class="doc-list">${inclExcl.importantNotes.map(i => `<li>${i}</li>`).join('')}</ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Cancellation Policy</div>
+      ${cancellationRows}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Complimentary</div>
+      <ul class="doc-list">${inclExcl.complimentary.map(i => `<li>${i}</li>`).join('')}</ul>
+    </div>
+
+    <div class="footer">
+      <div class="placeholder">[ Your Company Name / Logo ]</div>
+      <div class="note">Branding placeholder — replace before sending to a client. Pricing is net, non-commissionable, and this is a quotation only; no bookings have been made.</div>
+    </div>
+  `;
+
+  document.getElementById('btn-print').addEventListener('click', () => window.print());
+})();
+</script>
+</body>
+</html>

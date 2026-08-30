@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Hotel Costing — Costing Console</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app" id="chrome-mount"></div>
+
+<script src="assets/app.js"></script>
+<script>
+(async function () {
+  const itinerary = ensureItinerary();
+  if (!itinerary.tripBasics.clientName) {
+    window.location.href = 'trip-basics.html';
+    return;
+  }
+  const cfg = await loadAllConfig();
+
+  // Resolve any pending sample hotels into full line items (first visit from "Load Sample")
+  if (itinerary._pendingHotels && itinerary._pendingHotels.length && itinerary.hotels.length === 0) {
+    itinerary._pendingHotels.forEach(p => {
+      const hotel = cfg.hotels.find(h => h.id === p.hotelId);
+      const city = cfg.cities.find(c => c.id === p.cityId);
+      const meal = cfg.mealPlans.find(m => m.id === p.mealPlanId);
+      const rate = p.rateOverride != null ? p.rateOverride : findRate(cfg.roomRates, p.hotelId, p.occupancy, p.category);
+      const rooms = roomsNeeded(Number(itinerary.tripBasics.adults) + Number(itinerary.tripBasics.children), p.occupancy);
+      itinerary.hotels.push({
+        cityId: p.cityId, cityName: city.name,
+        hotelId: p.hotelId, hotelName: hotel.name, star: hotel.star,
+        nights: p.nights, occupancy: p.occupancy, category: p.category,
+        mealPlanId: p.mealPlanId, mealPlanName: meal.name,
+        rate, rooms, total: computeHotelLineTotal({ rate, nights: p.nights, rooms }),
+      });
+    });
+    delete itinerary._pendingHotels;
+    if (itinerary.transport && itinerary._pendingTransport) {
+      itinerary.transport.mileageSegments = itinerary._pendingTransport.mileageSegments;
+      itinerary.transport.vehicleId = itinerary._pendingTransport.vehicleId;
+      itinerary.transport.miscUsd = itinerary._pendingTransport.miscUsd;
+      delete itinerary._pendingTransport;
+    }
+    saveItinerary(itinerary);
+  }
+
+  renderChrome('chrome-mount', { activeStep: 2, breadcrumbSub: breadcrumbFor(itinerary) });
+  const content = document.getElementById('page-content');
+
+  function cityOptions(selectedId) {
+    return cfg.cities.map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name}</option>`).join('');
+  }
+  function hotelOptions(cityId, selectedId) {
+    return cfg.hotels.filter(h => h.cityId === cityId)
+      .map(h => `<option value="${h.id}" ${h.id === selectedId ? 'selected' : ''}>${h.name} (${h.star}★)</option>`).join('');
+  }
+  function mealOptions(selectedId) {
+    return cfg.mealPlans.map(m => `<option value="${m.id}" ${m.id === selectedId ? 'selected' : ''}>${m.name}</option>`).join('');
+  }
+
+  const defaultCity = cfg.cities[0].id;
+  const defaultHotels = cfg.hotels.filter(h => h.cityId === defaultCity);
+
+  content.innerHTML = `
+    <div>
+      <h1 class="page-title">Hotel costing</h1>
+      <p class="page-sub">Add one row per city on the route. Rate auto-fills from Config but stays editable for negotiated prices.</p>
+
+      <div class="badge-note">
+        <div class="item"><span class="badge config">Config</span> sourced from Admin setup</div>
+        <div class="item"><span class="badge editable">Editable</span> operator can override</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Add Hotel</div>
+        <div class="field-grid">
+          <div class="field">
+            <div class="field-label-row"><label>City</label><span class="badge config">Config</span></div>
+            <select id="f-city">${cityOptions(defaultCity)}</select>
+          </div>
+          <div class="field">
+            <label>Nights</label>
+            <input type="number" min="1" id="f-nights" value="1">
+          </div>
+          <div class="field span-2">
+            <div class="field-label-row"><label>Hotel</label><span class="badge config">Config</span></div>
+            <select id="f-hotel">${hotelOptions(defaultCity, defaultHotels[0].id)}</select>
+          </div>
+
+          <div class="field">
+            <div class="field-label-row"><label>Meal Plan</label><span class="badge config">Config</span></div>
+            <select id="f-meal">${mealOptions('hb')}</select>
+          </div>
+          <div class="field">
+            <div class="field-label-row"><label>Occupancy</label><span class="badge config">Config</span></div>
+            <select id="f-occ">
+              <option value="Double">Double</option>
+              <option value="Single">Single</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Rooms Needed</label>
+            <div class="readonly-pill" id="f-rooms">—</div>
+          </div>
+          <div class="field">
+            <div class="field-label-row"><label>Room Category</label><span class="badge config">Config</span></div>
+            <select id="f-cat">
+              <option>Standard</option>
+              <option>Superior</option>
+              <option>Luxury</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <div class="field-label-row"><label>Rate / Room / Night</label><span class="badge editable">Editable</span></div>
+            <input type="number" id="f-rate" value="0">
+          </div>
+          <div class="field span-2">
+            <label>Calculation</label>
+            <div class="readonly-pill" id="f-calc" style="color:#475569;font-weight:600;">—</div>
+          </div>
+          <div class="field">
+            <label>Line Total</label>
+            <div class="readonly-pill" id="f-total">$0</div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary" id="btn-add">+ Add to Itinerary</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Hotels Added <span style="font-weight:500;color:var(--slate);font-size:12px;" id="hotels-count"></span></div>
+        <div id="hotels-table-wrap"></div>
+        <div class="btn-row">
+          <button class="btn ghost" id="btn-back">← Back</button>
+          <button class="btn primary" id="btn-continue">Save &amp; Continue to Transportation →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ledger">
+      <div class="ledger-head">
+        <div class="t">Costing Ledger</div>
+        <div class="s">Builds up automatically as you progress</div>
+      </div>
+      <div class="ledger-body" id="ledger-body"></div>
+    </div>
+  `;
+
+  const pax = Number(itinerary.tripBasics.adults) + Number(itinerary.tripBasics.children);
+
+  function updateFormPreview() {
+    const cityId = document.getElementById('f-city').value;
+    const hotelId = document.getElementById('f-hotel').value;
+    const occ = document.getElementById('f-occ').value;
+    const cat = document.getElementById('f-cat').value;
+    const nights = Number(document.getElementById('f-nights').value) || 1;
+    const rooms = roomsNeeded(pax, occ);
+    const rate = findRate(cfg.roomRates, hotelId, occ, cat) || 0;
+    document.getElementById('f-rate').value = rate;
+    document.getElementById('f-rooms').textContent = `${rooms} room${rooms===1?'':'s'}`;
+    const total = rate * nights * rooms;
+    document.getElementById('f-calc').textContent = `$${rate} × ${nights} night${nights===1?'':'s'} × ${rooms} room${rooms===1?'':'s'}`;
+    document.getElementById('f-total').textContent = fmtUsd(total);
+  }
+
+  document.getElementById('f-city').addEventListener('change', (e) => {
+    document.getElementById('f-hotel').innerHTML = hotelOptions(e.target.value);
+    updateFormPreview();
+  });
+  ['f-hotel','f-occ','f-cat','f-nights'].forEach(id => {
+    document.getElementById(id).addEventListener('change', updateFormPreview);
+    document.getElementById(id).addEventListener('input', updateFormPreview);
+  });
+  document.getElementById('f-rate').addEventListener('input', () => {
+    const rate = Number(document.getElementById('f-rate').value) || 0;
+    const nights = Number(document.getElementById('f-nights').value) || 1;
+    const occ = document.getElementById('f-occ').value;
+    const rooms = roomsNeeded(pax, occ);
+    document.getElementById('f-calc').textContent = `$${rate} × ${nights} night${nights===1?'':'s'} × ${rooms} room${rooms===1?'':'s'} (manually edited)`;
+    document.getElementById('f-total').textContent = fmtUsd(rate * nights * rooms);
+  });
+  updateFormPreview();
+
+  function renderHotelsTable() {
+    document.getElementById('hotels-count').textContent = `(${itinerary.hotels.length} added)`;
+    const wrap = document.getElementById('hotels-table-wrap');
+    if (itinerary.hotels.length === 0) {
+      wrap.innerHTML = `<div class="empty-state"><div class="big">No hotels added yet</div>Add at least one city above to continue.</div>`;
+      return;
+    }
+    const rows = itinerary.hotels.map((h, i) => `
+      <tr>
+        <td><span class="pill-city"><span class="pill-dot"></span>${h.cityName}</span></td>
+        <td>${h.nights}</td>
+        <td>${h.hotelName} ${h.star}★</td>
+        <td>${h.occupancy} · ${h.category}</td>
+        <td>${h.mealPlanName}</td>
+        <td class="right num">$${h.rate}</td>
+        <td class="right num">${h.rooms}</td>
+        <td class="right num">${fmtUsd(h.total)}</td>
+        <td class="right"><button class="icon-btn" data-idx="${i}">✕ Remove</button></td>
+      </tr>`).join('');
+    const subtotal = computeAccommodationSubtotal(itinerary);
+    wrap.innerHTML = `
+      <table class="data">
+        <tr><th>City</th><th>Nights</th><th>Hotel</th><th>Room</th><th>Meal</th>
+            <th class="right">Rate/Night</th><th class="right">Rooms</th><th class="right">Total</th><th></th></tr>
+        ${rows}
+        <tr class="subtotal-row"><td colspan="7">Accommodation Subtotal</td><td class="right num">${fmtUsd(subtotal)}</td><td></td></tr>
+      </table>`;
+    wrap.querySelectorAll('.icon-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        itinerary.hotels.splice(Number(btn.dataset.idx), 1);
+        saveItinerary(itinerary);
+        renderHotelsTable();
+        renderLedger();
+      });
+    });
+  }
+
+  function renderLedger() {
+    const lb = document.getElementById('ledger-body');
+    const hotelLines = itinerary.hotels.map(h =>
+      `<div class="ledger-line"><span class="k">${h.cityName} (${h.nights}N)</span><span class="v">${fmtUsd(h.total)}</span></div>`).join('');
+    const subtotal = computeAccommodationSubtotal(itinerary);
+    lb.innerHTML = `
+      <div class="ledger-section">
+        <div class="ledger-section-title">Trip Basics</div>
+        <div class="ledger-line"><span class="k">${itinerary.tripBasics.clientName}</span><span class="v">${pax} pax · ${nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate).nights}N</span></div>
+      </div>
+      <div class="ledger-section">
+        <div class="ledger-section-title">Accommodation</div>
+        ${hotelLines || '<div class="ledger-line muted"><span class="k">No hotels yet</span><span class="v">—</span></div>'}
+        ${itinerary.hotels.length ? `<div class="ledger-subtotal"><span>Subtotal</span><span>${fmtUsd(subtotal)}</span></div>` : ''}
+      </div>
+      <div class="ledger-section">
+        <div class="ledger-section-title">Transportation</div>
+        <div class="ledger-line muted"><span class="k">Not started yet</span><span class="v">—</span></div>
+      </div>
+      <div class="ledger-section">
+        <div class="ledger-section-title">Pricing</div>
+        <div class="ledger-line muted"><span class="k">Not calculated yet</span><span class="v">—</span></div>
+      </div>
+    `;
+  }
+
+  document.getElementById('btn-add').addEventListener('click', () => {
+    const cityId = document.getElementById('f-city').value;
+    const hotelId = document.getElementById('f-hotel').value;
+    const city = cfg.cities.find(c => c.id === cityId);
+    const hotel = cfg.hotels.find(h => h.id === hotelId);
+    const mealPlanId = document.getElementById('f-meal').value;
+    const meal = cfg.mealPlans.find(m => m.id === mealPlanId);
+    const occupancy = document.getElementById('f-occ').value;
+    const category = document.getElementById('f-cat').value;
+    const nights = Number(document.getElementById('f-nights').value) || 1;
+    const rate = Number(document.getElementById('f-rate').value) || 0;
+    const rooms = roomsNeeded(pax, occupancy);
+
+    itinerary.hotels.push({
+      cityId, cityName: city.name, hotelId, hotelName: hotel.name, star: hotel.star,
+      nights, occupancy, category, mealPlanId, mealPlanName: meal.name,
+      rate, rooms, total: rate * nights * rooms,
+    });
+    saveItinerary(itinerary);
+    renderHotelsTable();
+    renderLedger();
+    toast(`${hotel.name} added.`);
+  });
+
+  document.getElementById('btn-back').addEventListener('click', () => window.location.href = 'trip-basics.html');
+  document.getElementById('btn-continue').addEventListener('click', () => {
+    if (itinerary.hotels.length === 0) { toast('Add at least one hotel first.'); return; }
+    window.location.href = 'transportation.html';
+  });
+
+  renderHotelsTable();
+  renderLedger();
+})();
+</script>
+</body>
+</html>

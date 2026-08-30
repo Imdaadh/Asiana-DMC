@@ -1,0 +1,26 @@
+{
+  "kandy": {
+    "arrival": "Arrive at Colombo International Airport. Meet & greet by our representative and proceed to Kandy, stopping en route to visit the Pinnawala Elephant Orphanage. Upon reaching Kandy, explore the city with a guided city tour. Later, check in and relax at the hotel.",
+    "transitIn": "Travel to Kandy, stopping en route at scenic points of interest along the way. Upon arrival, explore Kandy with a guided city tour before checking in and relaxing at the hotel.",
+    "extra": [
+      "Full day at leisure in Kandy — visit the Temple of the Tooth Relic, the Royal Botanical Gardens at Peradeniya, and explore the local markets around the lake."
+    ],
+    "departure": "Breakfast at the hotel. Later, transfer to the airport in time for your departure flight — leaving Sri Lanka with beautiful memories."
+  },
+  "bentota": {
+    "arrival": "Arrive at Colombo International Airport. Meet & greet by our representative and proceed directly to Bentota. Check in and relax at the resort.",
+    "transitIn": "Proceed to Bentota through scenic countryside and coastal landscapes. Upon arrival, enjoy leisure time at Bentota Beach and relax at the resort.",
+    "extra": [
+      "Explore Bentota — take part in a Madu River boat ride, visit the Turtle Centre and try the Fish Spa, or spend the day at leisure with optional water sports."
+    ],
+    "departure": "Breakfast at the hotel. Later, transfer to the airport in time for your departure flight — leaving Sri Lanka with beautiful memories."
+  },
+  "colombo": {
+    "arrival": "Arrive at Colombo International Airport. Meet & greet by our representative and transfer directly to your hotel in Colombo.",
+    "transitIn": "Drive to Colombo, enjoying a city tour covering Independence Square, Galle Face Green, Gangaramaya Temple and the Old Parliament. Finish the day with some shopping.",
+    "extra": [
+      "Full day at leisure in Colombo, with time for shopping and optional excursions."
+    ],
+    "departure": "Breakfast at the hotel. Later, transfer to the airport in time for your departure flight — leaving Sri Lanka with beautiful memories."
+  }
+}

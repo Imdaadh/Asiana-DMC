@@ -1,0 +1,26 @@
+{
+  "tripBasics": {
+    "clientName": "Priyanshu Aggarwal",
+    "nationality": "Indian",
+    "arrivalDate": "2026-09-11",
+    "departureDate": "2026-09-17",
+    "adults": 6,
+    "children": 0,
+    "notes": "Sample inquiry adapted from a real Sri Lanka itinerary — shortened to the 3 demo cities in this POC (Kandy, Bentota, Colombo). The original 6N/7D itinerary also included Nuwara Eliya and Yala, which aren't in this sample dataset."
+  },
+  "hotels": [
+    { "cityId": "kandy",   "hotelId": "radisson-kandy",     "nights": 1, "occupancy": "Double", "category": "Standard", "mealPlanId": "hb", "rateOverride": null },
+    { "cityId": "bentota", "hotelId": "earls-reef-bentota", "nights": 2, "occupancy": "Double", "category": "Superior", "mealPlanId": "hb", "rateOverride": null },
+    { "cityId": "colombo", "hotelId": "morven-colombo",     "nights": 1, "occupancy": "Double", "category": "Standard", "mealPlanId": "hb", "rateOverride": null }
+  ],
+  "transport": {
+    "mileageSegments": [
+      { "km": 115, "label": "Colombo Airport \u2192 Kandy" },
+      { "km": 140, "label": "Kandy \u2192 Bentota" },
+      { "km": 65,  "label": "Bentota \u2192 Colombo" },
+      { "km": 35,  "label": "Colombo \u2192 Airport" }
+    ],
+    "vehicleId": "van10",
+    "miscUsd": 30
+  }
+}

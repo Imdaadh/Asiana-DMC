@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Existing Itineraries — Costing Console</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app" id="chrome-mount"></div>
+
+<script src="assets/app.js"></script>
+<script>
+renderChrome('chrome-mount', { activeStep: 0, breadcrumbSub: 'Existing Itineraries' });
+const content = document.getElementById('page-content');
+content.style.gridTemplateColumns = '1fr';
+content.style.maxWidth = '900px';
+
+const saved = getSavedItineraries();
+
+content.innerHTML = `
+  <h1 class="page-title">Existing Itineraries</h1>
+  <p class="page-sub">This is a stub for the POC — no search/filter yet. In the real product this becomes the "1 Night Kandy + 2 Nights Bentota"-style filtered search described in the proposal doc.</p>
+
+  <div class="stub-banner">This page is a placeholder. Filtering by city/nights combo, package type, and meal plan is not built in this POC — see CLAUDE.md.</div>
+
+  <div class="card">
+    <div class="card-title">Reference Example (read-only, seeded)</div>
+    <table class="data">
+      <tr><th>Client</th><th>Duration</th><th>Cities</th><th>Pax</th><th class="right">Per Person</th></tr>
+      <tr>
+        <td>Priyanshu Aggarwal</td>
+        <td>6N / 7D</td>
+        <td>Kandy, Nuwara Eliya, Yala, Bentota, Colombo</td>
+        <td>6 Adults</td>
+        <td class="right num">$382</td>
+      </tr>
+    </table>
+    <p style="font-size:11.5px;color:var(--slate);margin-top:10px;">
+      This is the original full 5-city itinerary you shared — kept here for reference. It's not editable since it predates this POC's 3-city sample dataset.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Saved This Session <span style="font-weight:500;color:var(--slate);font-size:12px;">(${saved.length})</span></div>
+    <div id="saved-wrap"></div>
+  </div>
+
+  <div class="btn-row" style="justify-content:flex-start;">
+    <a href="index.html"><button class="btn ghost">← Back to Dashboard</button></a>
+  </div>
+`;
+
+const wrap = document.getElementById('saved-wrap');
+if (saved.length === 0) {
+  wrap.innerHTML = `<div class="empty-state"><div class="big">Nothing saved yet</div>Complete a costing flow and click "Save Itinerary" on the Pricing Summary screen — it'll show up here (this browser only; stored in localStorage, not a real database).</div>`;
+} else {
+  wrap.innerHTML = `
+    <table class="data">
+      <tr><th>Client</th><th>Duration</th><th>Cities</th><th>Pax</th><th class="right">Grand Total</th><th class="right">Per Person</th></tr>
+      ${saved.map(s => `
+        <tr>
+          <td>${s.clientName}</td>
+          <td>${s.duration.nights}N / ${s.duration.days}D</td>
+          <td>${s.cities.join(', ')}</td>
+          <td>${s.pax}</td>
+          <td class="right num">${fmtUsd(s.grandTotal)}</td>
+          <td class="right num">${fmtUsd(s.perPerson)}</td>
+        </tr>`).join('')}
+    </table>`;
+}
+</script>
+</body>
+</html>

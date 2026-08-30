@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Transportation — Costing Console</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="app" id="chrome-mount"></div>
+
+<script src="assets/app.js"></script>
+<script>
+(async function () {
+  const itinerary = ensureItinerary();
+  if (!itinerary.tripBasics.clientName || itinerary.hotels.length === 0) {
+    window.location.href = itinerary.tripBasics.clientName ? 'hotel-costing.html' : 'trip-basics.html';
+    return;
+  }
+  const cfg = await loadAllConfig();
+  renderChrome('chrome-mount', { activeStep: 3, breadcrumbSub: breadcrumbFor(itinerary) });
+  const content = document.getElementById('page-content');
+
+  const pax = Number(itinerary.tripBasics.adults) + Number(itinerary.tripBasics.children);
+  if (!itinerary.transport.vehicleId) {
+    itinerary.transport.vehicleId = suggestVehicle(cfg.vehicles, pax).id;
+    saveItinerary(itinerary);
+  }
+
+  function vehicleOptions(selectedId) {
+    return cfg.vehicles.map(v =>
+      `<option value="${v.id}" ${v.id === selectedId ? 'selected' : ''}>${v.name} (up to ${v.capacity} pax)</option>`).join('');
+  }
+
+  content.innerHTML = `
+    <div>
+      <h1 class="page-title">Transportation costing</h1>
+      <p class="page-sub">Enter road distances one at a time — they sum automatically. Vehicle is auto-suggested from pax count entered in Stage 1.</p>
+
+      <div class="card">
+        <div class="card-title">Distance Segments <span class="badge editable">Editable</span></div>
+        <div class="chip-input-row">
+          <input id="f-km" type="number" min="1" placeholder="Distance in km…">
+          <input id="f-label" placeholder="Label, e.g. Colombo → Kandy (optional)" style="flex:1.4;border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13.5px;">
+          <button class="btn ghost" id="btn-add-km">Add</button>
+        </div>
+        <div class="chips" id="chips"></div>
+        <div class="mileage-total">
+          <span class="k">Total Mileage</span>
+          <span class="v num" id="total-mileage">0 km</span>
+        </div>
+
+        <div class="vehicle-row">
+          <div>
+            <div class="name" id="vehicle-name">—</div>
+            <div class="tag">Auto-suggested for ${pax} pax · <span class="badge config" style="margin-left:2px;">Config</span></div>
+          </div>
+          <select id="f-vehicle" style="border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;color:var(--indigo);">
+            ${vehicleOptions(itinerary.transport.vehicleId)}
+          </select>
+        </div>
+
+        <div class="calc-row">
+          <span class="k">Vehicle Rate <span class="badge config">Config</span></span>
+          <span class="v num" id="vehicle-rate">—</span>
+        </div>
+        <div class="calc-row">
+          <span class="k">Transport Cost (LKR) <span class="expr" id="transport-expr"></span></span>
+          <span class="v num" id="transport-lkr">—</span>
+        </div>
+        <div class="calc-row">
+          <span class="k">Exchange Rate <span class="badge locked">Admin only</span></span>
+          <span class="v num">LKR ${cfg.pricingSettings.exchangeRateLkrPerUsd} = $1</span>
+        </div>
+        <div class="calc-row">
+          <span class="k">Transport Cost (USD)</span>
+          <span class="v num" id="transport-usd">—</span>
+        </div>
+        <div class="calc-divider"></div>
+        <div class="calc-row">
+          <span class="k">Driver Bata <span class="expr" id="bata-expr"></span> <span class="badge config">Config</span></span>
+          <span class="v num" id="bata-total">—</span>
+        </div>
+        <div class="calc-row">
+          <span class="k">Misc Expenses (USD) <span class="badge editable">Editable</span></span>
+          <input type="number" id="f-misc" value="${itinerary.transport.miscUsd || 0}" style="width:100px;border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;font-size:13px;text-align:right;">
+        </div>
+        <div class="calc-divider"></div>
+        <div class="calc-row" style="font-size:15px;">
+          <span class="k">Total Transportation (USD)</span>
+          <span class="v num" id="transport-total" style="color:var(--indigo-dark);font-size:17px;">—</span>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn ghost" id="btn-back">← Back</button>
+          <button class="btn primary" id="btn-continue">Save &amp; Continue to Pricing Summary →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ledger">
+      <div class="ledger-head">
+        <div class="t">Costing Ledger</div>
+        <div class="s">Builds up automatically as you progress</div>
+      </div>
+      <div class="ledger-body" id="ledger-body"></div>
+    </div>
+  `;
+
+  function renderChips() {
+    const wrap = document.getElementById('chips');
+    wrap.innerHTML = itinerary.transport.mileageSegments.map((s, i) => `
+      <div class="chip">${s.km} km ${s.label ? `<span style="font-weight:500;color:#818CF8;">· ${s.label}</span>` : ''} <span class="x" data-idx="${i}">✕</span></div>
+    `).join('') || '<span style="color:var(--slate-soft);font-size:12.5px;">No segments yet — add the first leg above.</span>';
+    wrap.querySelectorAll('.x').forEach(x => {
+      x.addEventListener('click', () => {
+        itinerary.transport.mileageSegments.splice(Number(x.dataset.idx), 1);
+        saveItinerary(itinerary);
+        renderAll();
+      });
+    });
+  }
+
+  function renderAll() {
+    renderChips();
+    const breakdown = computeTransportBreakdown(itinerary, cfg.vehicles, cfg.pricingSettings);
+    document.getElementById('total-mileage').textContent = `${breakdown.totalKm} km`;
+    document.getElementById('vehicle-name').textContent = breakdown.vehicle.name;
+    document.getElementById('vehicle-rate').textContent = `LKR ${breakdown.vehicle.ratePerKmLkr} / km`;
+    document.getElementById('transport-expr').textContent = `${breakdown.totalKm} km × LKR ${breakdown.vehicle.ratePerKmLkr}`;
+    document.getElementById('transport-lkr').textContent = fmtLkr(breakdown.transportLkr);
+    document.getElementById('transport-usd').textContent = fmtUsd(breakdown.transportUsd);
+    document.getElementById('bata-expr').textContent = `$${breakdown.vehicle.driverBataPerDayUsd}/day × ${breakdown.days} days`;
+    document.getElementById('bata-total').textContent = fmtUsd(breakdown.driverBata);
+    document.getElementById('transport-total').textContent = fmtUsd(breakdown.subtotal);
+    renderLedger(breakdown);
+  }
+
+  function renderLedger(breakdown) {
+    const lb = document.getElementById('ledger-body');
+    const accSubtotal = computeAccommodationSubtotal(itinerary);
+    lb.innerHTML = `
+      <div class="ledger-section">
+        <div class="ledger-section-title">Trip Basics</div>
+        <div class="ledger-line"><span class="k">${itinerary.tripBasics.clientName}</span><span class="v">${pax} pax</span></div>
+      </div>
+      <div class="ledger-section">
+        <div class="ledger-section-title">Accommodation <span style="font-weight:800;color:var(--ink);">${fmtUsd(accSubtotal)}</span></div>
+        <div class="ledger-line muted"><span class="k">${itinerary.hotels.length} cities</span><span class="v">✓</span></div>
+      </div>
+      <div class="ledger-section">
+        <div class="ledger-section-title">Transportation</div>
+        <div class="ledger-line"><span class="k">Mileage (${breakdown.totalKm} km)</span><span class="v">${fmtUsd(breakdown.transportUsd)}</span></div>
+        <div class="ledger-line"><span class="k">Driver Bata</span><span class="v">${fmtUsd(breakdown.driverBata)}</span></div>
+        <div class="ledger-line"><span class="k">Misc Expenses</span><span class="v">${fmtUsd(breakdown.misc)}</span></div>
+        <div class="ledger-subtotal"><span>Subtotal</span><span>${fmtUsd(breakdown.subtotal)}</span></div>
+      </div>
+      <div class="ledger-section">
+        <div class="ledger-section-title">Pricing</div>
+        <div class="ledger-line muted"><span class="k">Not calculated yet</span><span class="v">—</span></div>
+      </div>
+    `;
+  }
+
+  document.getElementById('btn-add-km').addEventListener('click', () => {
+    const km = Number(document.getElementById('f-km').value);
+    if (!km || km <= 0) { toast('Enter a distance greater than 0.'); return; }
+    const label = document.getElementById('f-label').value;
+    itinerary.transport.mileageSegments.push({ km, label });
+    saveItinerary(itinerary);
+    document.getElementById('f-km').value = '';
+    document.getElementById('f-label').value = '';
+    document.getElementById('f-km').focus();
+    renderAll();
+  });
+  document.getElementById('f-km').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-add-km').click();
+  });
+
+  document.getElementById('f-vehicle').addEventListener('change', (e) => {
+    itinerary.transport.vehicleId = e.target.value;
+    itinerary.transport.vehicleOverridden = true;
+    saveItinerary(itinerary);
+    renderAll();
+  });
+
+  document.getElementById('f-misc').addEventListener('input', (e) => {
+    itinerary.transport.miscUsd = Number(e.target.value) || 0;
+    saveItinerary(itinerary);
+    renderAll();
+  });
+
+  document.getElementById('btn-back').addEventListener('click', () => window.location.href = 'hotel-costing.html');
+  document.getElementById('btn-continue').addEventListener('click', () => {
+    if (itinerary.transport.mileageSegments.length === 0) { toast('Add at least one distance segment.'); return; }
+    window.location.href = 'pricing-summary.html';
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>

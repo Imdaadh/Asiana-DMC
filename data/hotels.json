@@ -1,0 +1,13 @@
+[
+  { "id": "radisson-kandy",        "cityId": "kandy",    "name": "Radisson Kandy",           "star": 4 },
+  { "id": "earls-regency-kandy",   "cityId": "kandy",    "name": "Earl's Regency Kandy",     "star": 5 },
+  { "id": "hantana-kandy",         "cityId": "kandy",    "name": "Hantana Green Hills",      "star": 3 },
+
+  { "id": "earls-reef-bentota",    "cityId": "bentota",  "name": "Earls Reef Bentota",       "star": 4 },
+  { "id": "taj-exotica-bentota",   "cityId": "bentota",  "name": "Taj Exotica Bentota",      "star": 5 },
+  { "id": "beach-inn-bentota",     "cityId": "bentota",  "name": "Bentota Beach Inn",        "star": 3 },
+
+  { "id": "morven-colombo",        "cityId": "colombo",  "name": "Morven Colombo",           "star": 4 },
+  { "id": "cinnamon-grand-colombo","cityId": "colombo",  "name": "Cinnamon Grand Colombo",   "star": 5 },
+  { "id": "city-lodge-colombo",    "cityId": "colombo",  "name": "City Lodge Colombo",       "star": 3 }
+]

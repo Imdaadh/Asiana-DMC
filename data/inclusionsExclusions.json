@@ -1,0 +1,53 @@
+{
+  "includes": [
+    "Meet and greet service, assistance with luggage & hotel transfers.",
+    "Hotel accommodation as mentioned in the selected category.",
+    "Meals as per the selected meal plan.",
+    "Activities & sightseeing as mentioned in the itinerary (without entrance fees).",
+    "City & shopping tours as mentioned in the itinerary.",
+    "Private transport in an air-conditioned vehicle.",
+    "Services of an English-speaking guide / chauffeur.",
+    "Applicable taxes.",
+    "SIM card on arrival (unlimited local calls and social media).",
+    "Guide, fuel, airport, paging and parking charges."
+  ],
+  "excludes": [
+    "Entry visa fee.",
+    "Early check-in / late check-out.",
+    "Entrance fees.",
+    "Temple donations.",
+    "Travel insurance.",
+    "Camera and video permits.",
+    "Tips.",
+    "Any other meals or activities not specified above."
+  ],
+  "importantNotes": [
+    "Driver and vehicle are available only as per the itinerary. Extra activities and excursions will incur additional charges.",
+    "Dress code for temple visits: shoulders and knees should be covered with sarongs or long trousers.",
+    "Pricing is net and non-commissionable.",
+    "No refunds for unused tours, rooms, meals, or transfer services.",
+    "This is only a quotation — no bookings have been made, and rates/rooms are subject to change until confirmed."
+  ],
+  "complimentary": [
+    "500ml mineral water bottle per person per day during the tour.",
+    "Free visit to a Gem Museum.",
+    "Free visit to an arts & crafts centre.",
+    "Free entrance to a spice garden with a short head massage.",
+    "Free visit to a tea factory with a complimentary cup of tea per person.",
+    "Special meal arrangements at hotels when booked on Half/Full Board (Indian / Halal / Vegetarian, etc.).",
+    "Free room upgrades to the next category, subject to availability.",
+    "Local insurance for the vehicle.",
+    "Parking and paging at the airport.",
+    "Highway toll fees.",
+    "Chauffeur meals and accommodation."
+  ],
+  "cancellationPolicy": [
+    { "window": "30+ days prior to arrival", "charge": "No cancellation charge" },
+    { "window": "29 – 15 days prior to arrival", "charge": "50% of the total cost" },
+    { "window": "14 – 1 day(s) prior to arrival", "charge": "100% of the total cost" }
+  ],
+  "checkInCheckOut": {
+    "checkIn": "14:00 hrs",
+    "checkOut": "12:00 PM"
+  }
+}
