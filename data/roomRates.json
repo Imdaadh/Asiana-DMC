@@ -36,6 +36,24 @@
     "ratePerNight": 120
   },
   {
+    "hotelId": "radisson-kandy",
+    "occupancy": "Triple",
+    "category": "Standard",
+    "ratePerNight": 100
+  },
+  {
+    "hotelId": "radisson-kandy",
+    "occupancy": "Triple",
+    "category": "Superior",
+    "ratePerNight": 120
+  },
+  {
+    "hotelId": "radisson-kandy",
+    "occupancy": "Triple",
+    "category": "Luxury",
+    "ratePerNight": 150
+  },
+  {
     "hotelId": "earls-regency-kandy",
     "occupancy": "Single",
     "category": "Standard",
@@ -72,6 +90,24 @@
     "ratePerNight": 165
   },
   {
+    "hotelId": "earls-regency-kandy",
+    "occupancy": "Triple",
+    "category": "Standard",
+    "ratePerNight": 140
+  },
+  {
+    "hotelId": "earls-regency-kandy",
+    "occupancy": "Triple",
+    "category": "Superior",
+    "ratePerNight": 165
+  },
+  {
+    "hotelId": "earls-regency-kandy",
+    "occupancy": "Triple",
+    "category": "Luxury",
+    "ratePerNight": 205
+  },
+  {
     "hotelId": "hantana-kandy",
     "occupancy": "Single",
     "category": "Standard",
@@ -106,6 +142,24 @@
     "occupancy": "Double",
     "category": "Luxury",
     "ratePerNight": 90
+  },
+  {
+    "hotelId": "hantana-kandy",
+    "occupancy": "Triple",
+    "category": "Standard",
+    "ratePerNight": 75
+  },
+  {
+    "hotelId": "hantana-kandy",
+    "occupancy": "Triple",
+    "category": "Superior",
+    "ratePerNight": 90
+  },
+  {
+    "hotelId": "hantana-kandy",
+    "occupancy": "Triple",
+    "category": "Luxury",
+    "ratePerNight": 115
   },
   {
     "hotelId": "earls-reef-bentota",
@@ -144,6 +198,24 @@
     "ratePerNight": 120
   },
   {
+    "hotelId": "earls-reef-bentota",
+    "occupancy": "Triple",
+    "category": "Standard",
+    "ratePerNight": 100
+  },
+  {
+    "hotelId": "earls-reef-bentota",
+    "occupancy": "Triple",
+    "category": "Superior",
+    "ratePerNight": 120
+  },
+  {
+    "hotelId": "earls-reef-bentota",
+    "occupancy": "Triple",
+    "category": "Luxury",
+    "ratePerNight": 150
+  },
+  {
     "hotelId": "taj-exotica-bentota",
     "occupancy": "Single",
     "category": "Standard",
@@ -180,6 +252,24 @@
     "ratePerNight": 165
   },
   {
+    "hotelId": "taj-exotica-bentota",
+    "occupancy": "Triple",
+    "category": "Standard",
+    "ratePerNight": 140
+  },
+  {
+    "hotelId": "taj-exotica-bentota",
+    "occupancy": "Triple",
+    "category": "Superior",
+    "ratePerNight": 165
+  },
+  {
+    "hotelId": "taj-exotica-bentota",
+    "occupancy": "Triple",
+    "category": "Luxury",
+    "ratePerNight": 205
+  },
+  {
     "hotelId": "beach-inn-bentota",
     "occupancy": "Single",
     "category": "Standard",
@@ -214,6 +304,24 @@
     "occupancy": "Double",
     "category": "Luxury",
     "ratePerNight": 90
+  },
+  {
+    "hotelId": "beach-inn-bentota",
+    "occupancy": "Triple",
+    "category": "Standard",
+    "ratePerNight": 75
+  },
+  {
+    "hotelId": "beach-inn-bentota",
+    "occupancy": "Triple",
+    "category": "Superior",
+    "ratePerNight": 90
+  },
+  {
+    "hotelId": "beach-inn-bentota",
+    "occupancy": "Triple",
+    "category": "Luxury",
+    "ratePerNight": 115
   },
   {
     "hotelId": "morven-colombo",
@@ -252,6 +360,24 @@
     "ratePerNight": 120
   },
   {
+    "hotelId": "morven-colombo",
+    "occupancy": "Triple",
+    "category": "Standard",
+    "ratePerNight": 100
+  },
+  {
+    "hotelId": "morven-colombo",
+    "occupancy": "Triple",
+    "category": "Superior",
+    "ratePerNight": 120
+  },
+  {
+    "hotelId": "morven-colombo",
+    "occupancy": "Triple",
+    "category": "Luxury",
+    "ratePerNight": 150
+  },
+  {
     "hotelId": "cinnamon-grand-colombo",
     "occupancy": "Single",
     "category": "Standard",
@@ -288,6 +414,24 @@
     "ratePerNight": 165
   },
   {
+    "hotelId": "cinnamon-grand-colombo",
+    "occupancy": "Triple",
+    "category": "Standard",
+    "ratePerNight": 140
+  },
+  {
+    "hotelId": "cinnamon-grand-colombo",
+    "occupancy": "Triple",
+    "category": "Superior",
+    "ratePerNight": 165
+  },
+  {
+    "hotelId": "cinnamon-grand-colombo",
+    "occupancy": "Triple",
+    "category": "Luxury",
+    "ratePerNight": 205
+  },
+  {
     "hotelId": "city-lodge-colombo",
     "occupancy": "Single",
     "category": "Standard",
@@ -322,5 +466,23 @@
     "occupancy": "Double",
     "category": "Luxury",
     "ratePerNight": 90
+  },
+  {
+    "hotelId": "city-lodge-colombo",
+    "occupancy": "Triple",
+    "category": "Standard",
+    "ratePerNight": 75
+  },
+  {
+    "hotelId": "city-lodge-colombo",
+    "occupancy": "Triple",
+    "category": "Superior",
+    "ratePerNight": 90
+  },
+  {
+    "hotelId": "city-lodge-colombo",
+    "occupancy": "Triple",
+    "category": "Luxury",
+    "ratePerNight": 115
   }
 ]

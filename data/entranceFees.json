@@ -1,14 +1,14 @@
 [
-  { "name": "Pinnawala Elephant Orphanage", "priceUsd": 10 },
-  { "name": "Botanical Gardens", "priceUsd": 10 },
-  { "name": "Temple of the Tooth", "priceUsd": 8 },
-  { "name": "Hakgala Garden", "priceUsd": 10 },
-  { "name": "Gregory's Lake", "priceUsd": 5 },
-  { "name": "Turtle Centre", "priceUsd": 5 },
-  { "name": "Yala Jeep Safari", "priceUsd": 60 },
-  { "name": "Ella Train Ride", "priceUsd": 25 },
-  { "name": "Madu Boat Ride", "priceUsd": 5 },
-  { "name": "Fish Spa", "priceUsd": 5 },
-  { "name": "Water Sports (3 activities)", "priceUsd": 25 },
-  { "name": "Lotus Tower", "priceUsd": 20 }
+  { "site": "Pinnawala Elephant Orphanage", "feesByNationality": { "Indian": 10, "Sri Lankan": 3,  "British": 15, "American": 15, "Other": 15 } },
+  { "site": "Botanical Gardens",            "feesByNationality": { "Indian": 10, "Sri Lankan": 2,  "British": 15, "American": 15, "Other": 15 } },
+  { "site": "Temple of the Tooth",          "feesByNationality": { "Indian": 8,  "Sri Lankan": 1,  "British": 15, "American": 15, "Other": 15 } },
+  { "site": "Hakgala Garden",               "feesByNationality": { "Indian": 10, "Sri Lankan": 2,  "British": 12, "American": 12, "Other": 12 } },
+  { "site": "Gregory's Lake",                "feesByNationality": { "Indian": 5,  "Sri Lankan": 1,  "British": 6,  "American": 6,  "Other": 6  } },
+  { "site": "Turtle Centre",                "feesByNationality": { "Indian": 5,  "Sri Lankan": 2,  "British": 8,  "American": 8,  "Other": 8  } },
+  { "site": "Yala Jeep Safari",             "feesByNationality": { "Indian": 60, "Sri Lankan": 20, "British": 75, "American": 75, "Other": 75 } },
+  { "site": "Ella Train Ride",              "feesByNationality": { "Indian": 25, "Sri Lankan": 5,  "British": 30, "American": 30, "Other": 30 } },
+  { "site": "Madu Boat Ride",               "feesByNationality": { "Indian": 5,  "Sri Lankan": 3,  "British": 8,  "American": 8,  "Other": 8  } },
+  { "site": "Fish Spa",                     "feesByNationality": { "Indian": 5,  "Sri Lankan": 3,  "British": 6,  "American": 6,  "Other": 6  } },
+  { "site": "Water Sports (3 activities)",  "feesByNationality": { "Indian": 25, "Sri Lankan": 15, "British": 30, "American": 30, "Other": 30 } },
+  { "site": "Lotus Tower",                  "feesByNationality": { "Indian": 20, "Sri Lankan": 5,  "British": 25, "American": 25, "Other": 25 } }
 ]

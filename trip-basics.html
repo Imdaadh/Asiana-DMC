@@ -68,6 +68,15 @@ content.innerHTML = `
           <input id="f-notes" value="${tb.notes || ''}" placeholder="Optional">
         </div>
       </div>
+
+      <div class="divider"></div>
+      <div class="card-title" style="font-size:13px;">Cost this itinerary</div>
+      <div class="toggle-row" style="margin:0 0 4px 0;">
+        <div class="toggle" id="toggle-pp">Per Person</div>
+        <div class="toggle" id="toggle-tb">Whole Group</div>
+      </div>
+      <p style="font-size:11.5px;color:var(--slate);margin:6px 0 0 0;">Controls how every cost total in this flow is shown — divided by pax, or as whole-group figures. Editable later on the Pricing Summary screen too.</p>
+
       <div class="btn-row">
         <button class="btn ghost" id="btn-draft">Save Draft</button>
         <button class="btn primary" id="btn-continue">Save &amp; Continue to Hotel Costing →</button>
@@ -121,6 +130,23 @@ function updateLedgerPreview() {
   document.getElementById(id).addEventListener('input', updateLedgerPreview);
 });
 updateLedgerPreview();
+
+function renderDisplayModeToggle() {
+  const mode = itinerary.pricing.displayMode || 'perPerson';
+  document.getElementById('toggle-pp').classList.toggle('selected', mode === 'perPerson');
+  document.getElementById('toggle-tb').classList.toggle('selected', mode === 'totalBreakdown');
+}
+document.getElementById('toggle-pp').addEventListener('click', () => {
+  itinerary.pricing.displayMode = 'perPerson';
+  saveItinerary(itinerary);
+  renderDisplayModeToggle();
+});
+document.getElementById('toggle-tb').addEventListener('click', () => {
+  itinerary.pricing.displayMode = 'totalBreakdown';
+  saveItinerary(itinerary);
+  renderDisplayModeToggle();
+});
+renderDisplayModeToggle();
 
 function collectForm() {
   return {

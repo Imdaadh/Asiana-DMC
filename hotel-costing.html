@@ -25,21 +25,28 @@
       const hotel = cfg.hotels.find(h => h.id === p.hotelId);
       const city = cfg.cities.find(c => c.id === p.cityId);
       const meal = cfg.mealPlans.find(m => m.id === p.mealPlanId);
-      const rate = p.rateOverride != null ? p.rateOverride : findRate(cfg.roomRates, p.hotelId, p.occupancy, p.category);
-      const rooms = roomsNeeded(Number(itinerary.tripBasics.adults) + Number(itinerary.tripBasics.children), p.occupancy);
-      itinerary.hotels.push({
+      const roomMix = p.roomMix.map(r => {
+        const rate = r.rateOverride != null ? r.rateOverride : findRate(cfg.roomRates, p.hotelId, r.occupancy, r.category);
+        return {
+          occupancy: r.occupancy, category: r.category, rooms: r.rooms, rate,
+          mealPlanId: p.mealPlanId, mealPlanName: meal.name,
+          total: computeRoomLineTotal({ rate, nights: p.nights, rooms: r.rooms }),
+        };
+      });
+      const hotelEntry = {
         cityId: p.cityId, cityName: city.name,
         hotelId: p.hotelId, hotelName: hotel.name, star: hotel.star,
-        nights: p.nights, occupancy: p.occupancy, category: p.category,
-        mealPlanId: p.mealPlanId, mealPlanName: meal.name,
-        rate, rooms, total: computeHotelLineTotal({ rate, nights: p.nights, rooms }),
-      });
+        nights: p.nights, mealPlanId: p.mealPlanId, mealPlanName: meal.name,
+        roomMix,
+      };
+      hotelEntry.total = computeHotelTotal(hotelEntry);
+      itinerary.hotels.push(hotelEntry);
     });
     delete itinerary._pendingHotels;
     if (itinerary.transport && itinerary._pendingTransport) {
       itinerary.transport.mileageSegments = itinerary._pendingTransport.mileageSegments;
       itinerary.transport.vehicleId = itinerary._pendingTransport.vehicleId;
-      itinerary.transport.miscUsd = itinerary._pendingTransport.miscUsd;
+      itinerary.transport.miscExpenses = itinerary._pendingTransport.miscExpenses || [];
       delete itinerary._pendingTransport;
     }
     saveItinerary(itinerary);
@@ -58,14 +65,28 @@
   function mealOptions(selectedId) {
     return cfg.mealPlans.map(m => `<option value="${m.id}" ${m.id === selectedId ? 'selected' : ''}>${m.name}</option>`).join('');
   }
+  function mealName(id) {
+    const m = cfg.mealPlans.find(m => m.id === id);
+    return m ? m.name : '';
+  }
+  function roomMealOptions(defaultMealId) {
+    return `<option value="">Use hotel default (${mealName(defaultMealId)})</option>` + mealOptions(defaultMealId);
+  }
+  function summarizeRoomMix(roomMix, hotelMealPlanName) {
+    return roomMix.map(r => {
+      const mealSuffix = (r.mealPlanName && r.mealPlanName !== hotelMealPlanName) ? `, ${r.mealPlanName}` : '';
+      return `${r.rooms} ${r.occupancy} (${r.category}${mealSuffix})`;
+    }).join(' + ');
+  }
 
   const defaultCity = cfg.cities[0].id;
   const defaultHotels = cfg.hotels.filter(h => h.cityId === defaultCity);
+  const pax = Number(itinerary.tripBasics.adults) + Number(itinerary.tripBasics.children);
 
   content.innerHTML = `
     <div>
       <h1 class="page-title">Hotel costing</h1>
-      <p class="page-sub">Add one row per city on the route. Rate auto-fills from Config but stays editable for negotiated prices.</p>
+      <p class="page-sub">Add one row per city on the route. Mix room types as needed — rate auto-fills from Config but stays editable for negotiated prices.</p>
 
       <div class="badge-note">
         <div class="item"><span class="badge config">Config</span> sourced from Admin setup</div>
@@ -82,26 +103,28 @@
           <div class="field">
             <label>Nights</label>
             <input type="number" min="1" id="f-nights" value="1">
+            <div id="nights-remaining-hint" style="margin-top:2px;font-size:11.5px;"></div>
           </div>
           <div class="field span-2">
             <div class="field-label-row"><label>Hotel</label><span class="badge config">Config</span></div>
             <select id="f-hotel">${hotelOptions(defaultCity, defaultHotels[0].id)}</select>
           </div>
-
-          <div class="field">
+          <div class="field span-2">
             <div class="field-label-row"><label>Meal Plan</label><span class="badge config">Config</span></div>
             <select id="f-meal">${mealOptions('hb')}</select>
           </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="card-title" style="margin-bottom:10px;font-size:13px;">Room Mix for this City <span class="badge editable">Room count required</span></div>
+        <div class="field-grid">
           <div class="field">
             <div class="field-label-row"><label>Occupancy</label><span class="badge config">Config</span></div>
             <select id="f-occ">
               <option value="Double">Double</option>
               <option value="Single">Single</option>
+              <option value="Triple">Triple</option>
             </select>
-          </div>
-          <div class="field">
-            <label>Rooms Needed</label>
-            <div class="readonly-pill" id="f-rooms">—</div>
           </div>
           <div class="field">
             <div class="field-label-row"><label>Room Category</label><span class="badge config">Config</span></div>
@@ -111,10 +134,17 @@
               <option>Luxury</option>
             </select>
           </div>
-
+          <div class="field">
+            <label>Room Count <span style="color:#DC2626;">*</span></label>
+            <input type="number" min="1" id="f-rooms">
+          </div>
           <div class="field">
             <div class="field-label-row"><label>Rate / Room / Night</label><span class="badge editable">Editable</span></div>
             <input type="number" id="f-rate" value="0">
+          </div>
+          <div class="field span-2">
+            <div class="field-label-row"><label>Meal Plan Override</label><span class="badge editable">Editable</span></div>
+            <select id="f-room-meal"></select>
           </div>
           <div class="field span-2">
             <label>Calculation</label>
@@ -124,7 +154,14 @@
             <label>Line Total</label>
             <div class="readonly-pill" id="f-total">$0</div>
           </div>
+          <div class="field" style="justify-content:flex-end;">
+            <button class="btn ghost" id="btn-add-row" type="button">+ Add Room Row</button>
+          </div>
         </div>
+
+        <div class="room-mix-list" id="room-mix-list"></div>
+        <div class="coverage-line" id="coverage-line"></div>
+
         <div class="btn-row">
           <button class="btn primary" id="btn-add">+ Add to Itinerary</button>
         </div>
@@ -133,6 +170,7 @@
       <div class="card">
         <div class="card-title">Hotels Added <span style="font-weight:500;color:var(--slate);font-size:12px;" id="hotels-count"></span></div>
         <div id="hotels-table-wrap"></div>
+        <div class="coverage-line" id="nights-coverage-line"></div>
         <div class="btn-row">
           <button class="btn ghost" id="btn-back">← Back</button>
           <button class="btn primary" id="btn-continue">Save &amp; Continue to Transportation →</button>
@@ -149,40 +187,146 @@
     </div>
   `;
 
-  const pax = Number(itinerary.tripBasics.adults) + Number(itinerary.tripBasics.children);
+  let pendingRoomMix = [];
 
-  function updateFormPreview() {
-    const cityId = document.getElementById('f-city').value;
-    const hotelId = document.getElementById('f-hotel').value;
+  function currentHotelId() { return document.getElementById('f-hotel').value; }
+  function currentNights() { return Number(document.getElementById('f-nights').value) || 1; }
+
+  function remainingNights() {
+    const tripNights = nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate).nights;
+    return tripNights - hotelsNightsTotal(itinerary);
+  }
+
+  function updateNightsCheck() {
+    const nights = currentNights();
+    const remaining = remainingNights();
+    const hint = document.getElementById('nights-remaining-hint');
+    if (nights > remaining) {
+      hint.style.color = '#DC2626';
+      hint.textContent = `Only ${remaining} night${remaining===1?'':'s'} left unallocated for this trip — reduce Nights before adding.`;
+    } else {
+      hint.style.color = 'var(--slate)';
+      hint.textContent = `${remaining} night${remaining===1?'':'s'} unallocated for this trip.`;
+    }
+    return nights <= remaining;
+  }
+
+  function updateRowPreview() {
+    const hotelId = currentHotelId();
     const occ = document.getElementById('f-occ').value;
     const cat = document.getElementById('f-cat').value;
-    const nights = Number(document.getElementById('f-nights').value) || 1;
-    const rooms = roomsNeeded(pax, occ);
+    const nights = currentNights();
+    const rooms = Number(document.getElementById('f-rooms').value) || 0;
+    const rate = Number(document.getElementById('f-rate').value) || 0;
+    const total = rate * nights * rooms;
+    document.getElementById('f-calc').textContent = `$${rate} × ${nights} night${nights===1?'':'s'} × ${rooms || 0} room${rooms===1?'':'s'}`;
+    document.getElementById('f-total').textContent = fmtUsd(total);
+    updateNightsCheck();
+    updateAddToItineraryState();
+  }
+
+  function refillRateAndSuggestion() {
+    const hotelId = currentHotelId();
+    const occ = document.getElementById('f-occ').value;
+    const cat = document.getElementById('f-cat').value;
     const rate = findRate(cfg.roomRates, hotelId, occ, cat) || 0;
     document.getElementById('f-rate').value = rate;
-    document.getElementById('f-rooms').textContent = `${rooms} room${rooms===1?'':'s'}`;
-    const total = rate * nights * rooms;
-    document.getElementById('f-calc').textContent = `$${rate} × ${nights} night${nights===1?'':'s'} × ${rooms} room${rooms===1?'':'s'}`;
-    document.getElementById('f-total').textContent = fmtUsd(total);
+    document.getElementById('f-rooms').value = roomsNeeded(pax, occ);
+    updateRowPreview();
+  }
+
+  function refreshRoomMealOptions() {
+    const defaultMealId = document.getElementById('f-meal').value;
+    document.getElementById('f-room-meal').innerHTML = roomMealOptions(defaultMealId);
   }
 
   document.getElementById('f-city').addEventListener('change', (e) => {
     document.getElementById('f-hotel').innerHTML = hotelOptions(e.target.value);
-    updateFormPreview();
+    pendingRoomMix = [];
+    renderPendingList();
+    refillRateAndSuggestion();
   });
-  ['f-hotel','f-occ','f-cat','f-nights'].forEach(id => {
-    document.getElementById(id).addEventListener('change', updateFormPreview);
-    document.getElementById(id).addEventListener('input', updateFormPreview);
+  document.getElementById('f-hotel').addEventListener('change', () => {
+    pendingRoomMix = [];
+    renderPendingList();
+    refillRateAndSuggestion();
   });
-  document.getElementById('f-rate').addEventListener('input', () => {
+  document.getElementById('f-meal').addEventListener('change', () => {
+    refreshRoomMealOptions();
+    renderPendingList();
+  });
+  ['f-occ', 'f-cat'].forEach(id => {
+    document.getElementById(id).addEventListener('change', refillRateAndSuggestion);
+  });
+  ['f-nights', 'f-rooms'].forEach(id => {
+    document.getElementById(id).addEventListener('input', updateRowPreview);
+  });
+  document.getElementById('f-rate').addEventListener('input', updateRowPreview);
+  refreshRoomMealOptions();
+
+  function effectiveMealName(r) {
+    return r.mealPlanOverrideId ? mealName(r.mealPlanOverrideId) : mealName(document.getElementById('f-meal').value);
+  }
+
+  function renderPendingList() {
+    const wrap = document.getElementById('room-mix-list');
+    const hotelMealName = mealName(document.getElementById('f-meal').value);
+    if (pendingRoomMix.length === 0) {
+      wrap.innerHTML = `<div style="padding:10px 0;color:var(--slate-soft);font-size:12.5px;">No room rows added yet for this city — add at least one above.</div>`;
+    } else {
+      wrap.innerHTML = pendingRoomMix.map((r, i) => {
+        const mealName_ = effectiveMealName(r);
+        const mealTag = r.mealPlanOverrideId ? ` · <span style="color:var(--indigo);">${mealName_}</span>` : '';
+        return `
+        <div class="room-mix-row">
+          <span class="k">${r.rooms} ${r.occupancy} · ${r.category}${mealTag}</span>
+          <span class="v">$${r.rate}/night <span class="num">${fmtUsd(computeRoomLineTotal({ rate: r.rate, nights: currentNights(), rooms: r.rooms }))}</span> <span class="remove" data-idx="${i}">✕</span></span>
+        </div>`;
+      }).join('');
+      wrap.querySelectorAll('.remove').forEach(x => {
+        x.addEventListener('click', () => {
+          pendingRoomMix.splice(Number(x.dataset.idx), 1);
+          renderPendingList();
+        });
+      });
+    }
+    const capacity = roomMixCapacity(pendingRoomMix);
+    const covLine = document.getElementById('coverage-line');
+    const totalRooms = pendingRoomMix.reduce((s, r) => s + r.rooms, 0);
+    if (pendingRoomMix.length === 0) {
+      covLine.textContent = '';
+    } else if (capacity < pax) {
+      covLine.className = 'coverage-line short';
+      covLine.textContent = `${totalRooms} room${totalRooms===1?'':'s'}: ${summarizeRoomMix(pendingRoomMix.map(r => ({...r, mealPlanName: effectiveMealName(r)})), hotelMealName)} — covers ${capacity} pax, but this trip has ${pax} — add another room.`;
+    } else {
+      covLine.className = 'coverage-line ok';
+      covLine.textContent = `${totalRooms} room${totalRooms===1?'':'s'}: ${summarizeRoomMix(pendingRoomMix.map(r => ({...r, mealPlanName: effectiveMealName(r)})), hotelMealName)} — ${capacity} pax covered.`;
+    }
+    updateAddToItineraryState();
+  }
+
+  function updateAddToItineraryState() {
+    const capacity = roomMixCapacity(pendingRoomMix);
+    const nightsOk = currentNights() <= remainingNights();
+    document.getElementById('btn-add').disabled = pendingRoomMix.length === 0 || capacity < pax || !nightsOk;
+  }
+
+  document.getElementById('btn-add-row').addEventListener('click', () => {
+    const occupancy = document.getElementById('f-occ').value;
+    const category = document.getElementById('f-cat').value;
+    const rooms = Number(document.getElementById('f-rooms').value) || 0;
     const rate = Number(document.getElementById('f-rate').value) || 0;
-    const nights = Number(document.getElementById('f-nights').value) || 1;
-    const occ = document.getElementById('f-occ').value;
-    const rooms = roomsNeeded(pax, occ);
-    document.getElementById('f-calc').textContent = `$${rate} × ${nights} night${nights===1?'':'s'} × ${rooms} room${rooms===1?'':'s'} (manually edited)`;
-    document.getElementById('f-total').textContent = fmtUsd(rate * nights * rooms);
+    const mealPlanOverrideId = document.getElementById('f-room-meal').value || null;
+    if (rooms <= 0) { toast('Enter a room count greater than 0.'); return; }
+    pendingRoomMix.push({ occupancy, category, rooms, rate, mealPlanOverrideId });
+    renderPendingList();
+    toast('Room row added — pick the next room type below, or click "Add to Itinerary" when done.');
+    // Reset the mini-form for the next room row so it's clear the add was captured.
+    document.getElementById('f-occ').value = 'Double';
+    document.getElementById('f-cat').value = 'Standard';
+    document.getElementById('f-room-meal').value = '';
+    refillRateAndSuggestion();
   });
-  updateFormPreview();
 
   function renderHotelsTable() {
     document.getElementById('hotels-count').textContent = `(${itinerary.hotels.length} added)`;
@@ -196,20 +340,17 @@
         <td><span class="pill-city"><span class="pill-dot"></span>${h.cityName}</span></td>
         <td>${h.nights}</td>
         <td>${h.hotelName} ${h.star}★</td>
-        <td>${h.occupancy} · ${h.category}</td>
+        <td>${summarizeRoomMix(h.roomMix, h.mealPlanName)}</td>
         <td>${h.mealPlanName}</td>
-        <td class="right num">$${h.rate}</td>
-        <td class="right num">${h.rooms}</td>
         <td class="right num">${fmtUsd(h.total)}</td>
         <td class="right"><button class="icon-btn" data-idx="${i}">✕ Remove</button></td>
       </tr>`).join('');
     const subtotal = computeAccommodationSubtotal(itinerary);
     wrap.innerHTML = `
       <table class="data">
-        <tr><th>City</th><th>Nights</th><th>Hotel</th><th>Room</th><th>Meal</th>
-            <th class="right">Rate/Night</th><th class="right">Rooms</th><th class="right">Total</th><th></th></tr>
+        <tr><th>City</th><th>Nights</th><th>Hotel</th><th>Room Mix</th><th>Meal</th><th class="right">Total</th><th></th></tr>
         ${rows}
-        <tr class="subtotal-row"><td colspan="7">Accommodation Subtotal</td><td class="right num">${fmtUsd(subtotal)}</td><td></td></tr>
+        <tr class="subtotal-row"><td colspan="5">Accommodation Subtotal</td><td class="right num">${fmtUsd(subtotal)}</td><td></td></tr>
       </table>`;
     wrap.querySelectorAll('.icon-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -217,8 +358,29 @@
         saveItinerary(itinerary);
         renderHotelsTable();
         renderLedger();
+        renderValidation();
+        updateNightsCheck();
       });
     });
+  }
+
+  function renderValidation() {
+    const line = document.getElementById('nights-coverage-line');
+    const tripNights = nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate).nights;
+    const coveredNights = hotelsNightsTotal(itinerary);
+    const shortCapacityHotels = itinerary.hotels.filter(h => roomMixCapacity(h.roomMix) < pax);
+
+    let msg = '', ok = true;
+    if (coveredNights !== tripNights) {
+      ok = false;
+      msg = `Trip is ${tripNights} night${tripNights===1?'':'s'}, but hotel entries only cover ${coveredNights} night${coveredNights===1?'':'s'} — add or adjust hotel entries before continuing.`;
+    } else if (shortCapacityHotels.length > 0) {
+      ok = false;
+      msg = `${shortCapacityHotels.map(h => h.cityName).join(', ')} — room mix doesn't cover all ${pax} pax. Fix the room mix before continuing.`;
+    }
+    line.className = ok ? 'coverage-line ok' : 'coverage-line short';
+    line.textContent = itinerary.hotels.length === 0 ? '' : (ok ? `✓ ${coveredNights} of ${tripNights} nights covered, all room mixes sufficient.` : msg);
+    document.getElementById('btn-continue').disabled = itinerary.hotels.length === 0 || !ok;
   }
 
   function renderLedger() {
@@ -254,31 +416,50 @@
     const hotel = cfg.hotels.find(h => h.id === hotelId);
     const mealPlanId = document.getElementById('f-meal').value;
     const meal = cfg.mealPlans.find(m => m.id === mealPlanId);
-    const occupancy = document.getElementById('f-occ').value;
-    const category = document.getElementById('f-cat').value;
-    const nights = Number(document.getElementById('f-nights').value) || 1;
-    const rate = Number(document.getElementById('f-rate').value) || 0;
-    const rooms = roomsNeeded(pax, occupancy);
+    const nights = currentNights();
 
-    itinerary.hotels.push({
+    if (pendingRoomMix.length === 0) { toast('Add at least one room row first.'); return; }
+    if (roomMixCapacity(pendingRoomMix) < pax) { toast('Room mix does not cover all pax yet.'); return; }
+    const remaining = remainingNights();
+    if (nights > remaining) {
+      toast(`Trip has ${remaining} night${remaining===1?'':'s'} left unallocated — reduce Nights for ${city.name} before adding.`);
+      return;
+    }
+
+    const roomMix = pendingRoomMix.map(r => ({
+      occupancy: r.occupancy, category: r.category, rooms: r.rooms, rate: r.rate,
+      mealPlanId: r.mealPlanOverrideId || mealPlanId,
+      mealPlanName: r.mealPlanOverrideId ? mealName(r.mealPlanOverrideId) : meal.name,
+      total: computeRoomLineTotal({ rate: r.rate, nights, rooms: r.rooms }),
+    }));
+    const hotelEntry = {
       cityId, cityName: city.name, hotelId, hotelName: hotel.name, star: hotel.star,
-      nights, occupancy, category, mealPlanId, mealPlanName: meal.name,
-      rate, rooms, total: rate * nights * rooms,
-    });
+      nights, mealPlanId, mealPlanName: meal.name, roomMix,
+    };
+    hotelEntry.total = computeHotelTotal(hotelEntry);
+
+    itinerary.hotels.push(hotelEntry);
     saveItinerary(itinerary);
+    pendingRoomMix = [];
+    renderPendingList();
     renderHotelsTable();
     renderLedger();
+    renderValidation();
+    updateNightsCheck();
     toast(`${hotel.name} added.`);
   });
 
   document.getElementById('btn-back').addEventListener('click', () => window.location.href = 'trip-basics.html');
   document.getElementById('btn-continue').addEventListener('click', () => {
-    if (itinerary.hotels.length === 0) { toast('Add at least one hotel first.'); return; }
+    if (document.getElementById('btn-continue').disabled) return;
     window.location.href = 'transportation.html';
   });
 
+  refillRateAndSuggestion();
+  renderPendingList();
   renderHotelsTable();
   renderLedger();
+  renderValidation();
 })();
 </script>
 </body>

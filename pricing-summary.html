@@ -26,7 +26,7 @@
 
   content.innerHTML = `
     <div>
-      <h1 class="page-title">Pricing summary</h1>
+      <h1 class="page-title">Pricing summary <span class="badge editable" id="mode-badge" style="vertical-align:middle;"></span></h1>
       <p class="page-sub">Cost builds up in sequence, top to bottom — exactly the order it was calculated in the earlier stages.</p>
 
       <div class="receipt">
@@ -86,12 +86,13 @@
     const pricing = computePricing(itinerary, cfg.vehicles, cfg.pricingSettings);
 
     document.getElementById('r-acc-sub').textContent = `${itinerary.hotels.length} cities · from Stage 2`;
-    document.getElementById('r-acc').textContent = fmtUsd(pricing.accommodation);
+    document.getElementById('r-acc').textContent = fmtUsd(displayAmount(pricing.accommodation, itinerary));
     document.getElementById('r-trans-sub').textContent = `${pricing.transport.totalKm} km + driver bata + misc · from Stage 3`;
-    document.getElementById('r-trans').textContent = fmtUsd(pricing.transport.subtotal);
-    document.getElementById('r-subtotal').textContent = fmtUsd(pricing.subtotal);
-    document.getElementById('r-markup').textContent = '+ ' + fmtUsd(pricing.markupAmount);
-    document.getElementById('r-grand').textContent = fmtUsd(pricing.grandTotal);
+    document.getElementById('r-trans').textContent = fmtUsd(displayAmount(pricing.transport.subtotal, itinerary));
+    document.getElementById('r-subtotal').textContent = fmtUsd(displayAmount(pricing.subtotal, itinerary));
+    document.getElementById('r-markup').textContent = '+ ' + fmtUsd(displayAmount(pricing.markupAmount, itinerary));
+    document.getElementById('r-grand').textContent = fmtUsd(displayAmount(pricing.grandTotal, itinerary));
+    document.getElementById('mode-badge').textContent = itinerary.pricing.displayMode === 'perPerson' ? 'Showing: Per Person' : 'Showing: Whole Group';
 
     const mode = itinerary.pricing.displayMode || 'perPerson';
     document.getElementById('toggle-pp').classList.toggle('selected', mode === 'perPerson');
@@ -129,21 +130,21 @@
       </div>
       <div class="ledger-section">
         <div class="ledger-section-title">Accommodation</div>
-        <div class="ledger-line"><span class="k">${itinerary.hotels.length} cities</span><span class="v">${fmtUsd(pricing.accommodation)}</span></div>
+        <div class="ledger-line"><span class="k">${itinerary.hotels.length} cities</span><span class="v">${fmtUsd(displayAmount(pricing.accommodation, itinerary))}</span></div>
       </div>
       <div class="ledger-section">
         <div class="ledger-section-title">Transportation</div>
-        <div class="ledger-line"><span class="k">${pricing.transport.totalKm} km · Bata · Misc</span><span class="v">${fmtUsd(pricing.transport.subtotal)}</span></div>
+        <div class="ledger-line"><span class="k">${pricing.transport.totalKm} km · Bata · Misc</span><span class="v">${fmtUsd(displayAmount(pricing.transport.subtotal, itinerary))}</span></div>
       </div>
       <div class="ledger-section">
         <div class="ledger-section-title">Pricing</div>
-        <div class="ledger-line"><span class="k">Subtotal</span><span class="v">${fmtUsd(pricing.subtotal)}</span></div>
-        <div class="ledger-line"><span class="k">Markup (${pricing.markupPercent}%)</span><span class="v">${fmtUsd(pricing.markupAmount)}</span></div>
+        <div class="ledger-line"><span class="k">Subtotal</span><span class="v">${fmtUsd(displayAmount(pricing.subtotal, itinerary))}</span></div>
+        <div class="ledger-line"><span class="k">Markup (${pricing.markupPercent}%)</span><span class="v">${fmtUsd(displayAmount(pricing.markupAmount, itinerary))}</span></div>
       </div>
     `;
     document.getElementById('ledger-grand').innerHTML = `
       <div class="k">Grand Total</div>
-      <div class="v num">${fmtUsd(pricing.grandTotal)}</div>
+      <div class="v num">${fmtUsd(displayAmount(pricing.grandTotal, itinerary))}</div>
       <div class="s">${fmtUsd(pricing.perPerson)} / person · ${pricing.pax} pax</div>
     `;
 

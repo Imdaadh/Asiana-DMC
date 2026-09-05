@@ -189,6 +189,7 @@ input:disabled, select:disabled { background: #F1F5F9; color: var(--slate); curs
 }
 .btn.primary { background: var(--indigo); color: white; }
 .btn.ghost { background: white; border: 1.5px solid var(--border); color: var(--ink); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 .btn-row { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
 
 table.data { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -296,3 +297,14 @@ table.data td.right, table.data th.right { text-align: right; }
 
 .badge-note { display:flex; align-items:center; gap:14px; margin-bottom: 18px; font-size: 11.5px; color: var(--slate); }
 .badge-note .item { display:flex; align-items:center; gap:6px; }
+
+/* Room mix builder (Hotel Costing) */
+.room-mix-list { border: 1.5px dashed var(--indigo-soft-border); background: #FAFAFF; border-radius: 10px; padding: 4px 14px; margin: 12px 0; }
+.room-mix-row { display:flex; justify-content:space-between; align-items:center; padding: 9px 0; font-size:13px; border-bottom: 1px solid var(--border); }
+.room-mix-row:last-child { border-bottom: none; }
+.room-mix-row .k { font-weight: 700; color: var(--ink); }
+.room-mix-row .v { display:flex; align-items:center; gap:12px; font-weight: 700; }
+.room-mix-row .remove { color: #DC2626; font-weight: 800; font-size: 12px; cursor: pointer; }
+.coverage-line { font-size: 12.5px; font-weight: 700; padding: 8px 2px; }
+.coverage-line.ok { color: var(--editable-green); }
+.coverage-line.short { color: #DC2626; }

@@ -1,6 +1,8 @@
 [
-  { "id": "sedan", "name": "Sedan (Car)",        "capacity": 3,  "ratePerKmLkr": 80,  "driverBataPerDayUsd": 10 },
-  { "id": "van10", "name": "10-Seater Van",      "capacity": 10, "ratePerKmLkr": 100, "driverBataPerDayUsd": 15 },
-  { "id": "van14", "name": "14-Seater Van (KDH)","capacity": 14, "ratePerKmLkr": 120, "driverBataPerDayUsd": 18 },
-  { "id": "coach", "name": "Coach (30-Seater)",  "capacity": 30, "ratePerKmLkr": 180, "driverBataPerDayUsd": 25 }
+  { "id": "sedan",      "name": "Sedan (Car)",         "capacity": 3,  "ratePerKmLkr": 80,  "driverBataPerDayLkr": 3000 },
+  { "id": "van10",      "name": "10-Seater Van",       "capacity": 10, "ratePerKmLkr": 100, "driverBataPerDayLkr": 4500 },
+  { "id": "van14",      "name": "14-Seater Van (KDH)", "capacity": 14, "ratePerKmLkr": 120, "driverBataPerDayLkr": 5400 },
+  { "id": "coach",      "name": "Coach (30-Seater)",   "capacity": 30, "ratePerKmLkr": 180, "driverBataPerDayLkr": 7500 },
+  { "id": "mini-coach", "name": "Mini Coach (35-Seater)", "capacity": 35, "ratePerKmLkr": 200, "driverBataPerDayLkr": 8000, "guideFeePerDayLkr": 3500 },
+  { "id": "maxi-coach", "name": "Maxi Coach (50-Seater)", "capacity": 50, "ratePerKmLkr": 250, "driverBataPerDayLkr": 10000, "guideFeePerDayLkr": 4500 }
 ]

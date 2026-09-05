@@ -37,7 +37,10 @@ function blankItinerary() {
   return {
     tripBasics: { clientName: '', nationality: 'Indian', arrivalDate: '', departureDate: '', adults: 2, children: 0, notes: '' },
     hotels: [],
-    transport: { mileageSegments: [], vehicleId: null, vehicleOverridden: false, miscUsd: 0 },
+    transport: {
+      mileageSegments: [], vehicleId: null, vehicleOverridden: false, miscExpenses: [],
+      rateOverrideLkrPerKm: null, driverBataOverrideLkrPerDay: null, guideFeeOverrideLkrPerDay: null,
+    },
     pricing: { markupPercentOverride: null, displayMode: 'perPerson' },
   };
 }
@@ -82,18 +85,32 @@ function nightsDaysBetween(arrivalISO, departureISO) {
   return { nights, days: nights + 1 };
 }
 
+const OCC_CAPACITY = { Single: 1, Double: 2, Triple: 3 };
+
 function roomsNeeded(pax, occupancy) {
   if (occupancy === 'Single') return pax;
-  if (occupancy === 'Double') return Math.ceil(pax / 2);
+  if (occupancy === 'Triple') return Math.ceil(pax / 3);
   return Math.ceil(pax / 2);
 }
 
-function computeHotelLineTotal(line) {
+function computeRoomLineTotal(line) {
   return line.rate * line.nights * line.rooms;
+}
+
+function computeHotelTotal(hotel) {
+  return hotel.roomMix.reduce((sum, r) => sum + r.total, 0);
 }
 
 function computeAccommodationSubtotal(itinerary) {
   return itinerary.hotels.reduce((sum, h) => sum + h.total, 0);
+}
+
+function roomMixCapacity(roomMix) {
+  return roomMix.reduce((sum, r) => sum + r.rooms * (OCC_CAPACITY[r.occupancy] || 0), 0);
+}
+
+function hotelsNightsTotal(itinerary) {
+  return itinerary.hotels.reduce((sum, h) => sum + h.nights, 0);
 }
 
 function computeTotalMileage(itinerary) {
@@ -101,15 +118,36 @@ function computeTotalMileage(itinerary) {
 }
 
 function computeTransportBreakdown(itinerary, vehicles, pricingSettings) {
+  const t = itinerary.transport;
   const totalKm = computeTotalMileage(itinerary);
-  const vehicle = vehicles.find(v => v.id === itinerary.transport.vehicleId) || vehicles[0];
+  const vehicle = vehicles.find(v => v.id === t.vehicleId) || vehicles[0];
   const { days } = nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate);
-  const transportLkr = totalKm * (vehicle ? vehicle.ratePerKmLkr : 0);
-  const transportUsd = transportLkr / pricingSettings.exchangeRateLkrPerUsd;
-  const driverBata = (vehicle ? vehicle.driverBataPerDayUsd : 0) * days;
-  const misc = Number(itinerary.transport.miscUsd) || 0;
-  const subtotal = transportUsd + driverBata + misc;
-  return { totalKm, vehicle, days, transportLkr, transportUsd, driverBata, misc, subtotal };
+  const exchangeRate = pricingSettings.exchangeRateLkrPerUsd;
+
+  const ratePerKmLkr = t.rateOverrideLkrPerKm != null ? t.rateOverrideLkrPerKm : (vehicle ? vehicle.ratePerKmLkr : 0);
+  const transportLkr = totalKm * ratePerKmLkr;
+  const transportUsd = transportLkr / exchangeRate;
+
+  const driverBataRateLkr = t.driverBataOverrideLkrPerDay != null ? t.driverBataOverrideLkrPerDay : (vehicle ? vehicle.driverBataPerDayLkr : 0);
+  const driverBataLkr = driverBataRateLkr * days;
+  const driverBataUsd = driverBataLkr / exchangeRate;
+
+  const hasGuideFee = !!(vehicle && vehicle.guideFeePerDayLkr);
+  const guideFeeRateLkr = t.guideFeeOverrideLkrPerDay != null ? t.guideFeeOverrideLkrPerDay : (hasGuideFee ? vehicle.guideFeePerDayLkr : 0);
+  const guideFeeLkr = hasGuideFee ? guideFeeRateLkr * days : 0;
+  const guideFeeUsd = guideFeeLkr / exchangeRate;
+
+  const miscExpenses = t.miscExpenses || [];
+  const misc = miscExpenses.reduce((sum, m) => sum + (Number(m.amountUsd) || 0), 0);
+
+  const subtotal = transportUsd + driverBataUsd + guideFeeUsd + misc;
+  return {
+    totalKm, vehicle, days, exchangeRate,
+    ratePerKmLkr, transportLkr, transportUsd,
+    driverBataRateLkr, driverBataLkr, driverBataUsd,
+    hasGuideFee, guideFeeRateLkr, guideFeeLkr, guideFeeUsd,
+    miscExpenses, misc, subtotal,
+  };
 }
 
 function suggestVehicle(vehicles, pax) {
@@ -132,6 +170,15 @@ function computePricing(itinerary, vehicles, pricingSettings) {
 }
 
 /* ---------- itinerary preview (day-by-day) ---------- */
+function defaultTemplateOption(tourTemplates, cityId, category) {
+  const opts = tourTemplates[cityId] && tourTemplates[cityId][category] && tourTemplates[cityId][category].options;
+  return opts && opts.length ? opts[0] : null;
+}
+
+function templateOptionsFor(tourTemplates, cityId, category) {
+  return (tourTemplates[cityId] && tourTemplates[cityId][category] && tourTemplates[cityId][category].options) || [];
+}
+
 function buildItineraryDays(itinerary, tourTemplates) {
   const days = [];
   const cursor = itinerary.tripBasics.arrivalDate ? new Date(itinerary.tripBasics.arrivalDate) : new Date();
@@ -139,41 +186,56 @@ function buildItineraryDays(itinerary, tourTemplates) {
   let dayNum = 1;
 
   blocks.forEach((block, blockIdx) => {
-    const tpl = tourTemplates[block.cityId] || {};
     for (let n = 0; n < block.nights; n++) {
-      let route, description;
+      let route, category;
       if (blockIdx === 0 && n === 0) {
         route = `Arrival – ${block.cityName}`;
-        description = tpl.arrival || `Arrive and transfer to ${block.cityName}.`;
+        category = 'arrival';
       } else if (n === 0) {
         const prevCity = blocks[blockIdx - 1].cityName;
         route = `${prevCity} – ${block.cityName}`;
-        description = tpl.transitIn || `Travel to ${block.cityName}.`;
+        category = 'transitIn';
       } else {
         route = block.cityName;
-        const extras = tpl.extra || [];
-        description = extras.length ? extras[(n - 1) % extras.length] : `Day at leisure in ${block.cityName}.`;
+        category = 'extra';
       }
-      days.push({ dayNum, date: new Date(cursor), route, description, overnightCity: block.cityName });
+      const opt = defaultTemplateOption(tourTemplates, block.cityId, category);
+      const description = opt ? opt.description : `Details for ${block.cityName}.`;
+      days.push({
+        dayNum, date: new Date(cursor), route, description, overnightCity: block.cityName,
+        cityId: block.cityId, category, optionId: opt ? opt.id : null,
+      });
       dayNum++;
       cursor.setDate(cursor.getDate() + 1);
     }
   });
 
   const lastBlock = blocks[blocks.length - 1];
-  const lastTpl = (lastBlock && tourTemplates[lastBlock.cityId]) || {};
+  const departureOpt = lastBlock ? defaultTemplateOption(tourTemplates, lastBlock.cityId, 'departure') : null;
   days.push({
     dayNum,
     date: new Date(cursor),
     route: `${lastBlock ? lastBlock.cityName : ''} – Departure`,
-    description: lastTpl.departure || 'Breakfast at the hotel. Later, transfer to the airport in time for your departure flight.',
+    description: departureOpt ? departureOpt.description : 'Breakfast at the hotel. Later, transfer to the airport in time for your departure flight.',
     overnightCity: null,
+    cityId: lastBlock ? lastBlock.cityId : null,
+    category: 'departure',
+    optionId: departureOpt ? departureOpt.id : null,
   });
   return days;
 }
 
 function fmtDayDate(d) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+}
+
+/* ---------- display mode (Per Person / Whole Group) ---------- */
+function displayAmount(usdWholeGroupAmount, itinerary) {
+  const pax = Number(itinerary.tripBasics.adults) + Number(itinerary.tripBasics.children);
+  if (itinerary.pricing.displayMode === 'perPerson' && pax > 0) {
+    return usdWholeGroupAmount / pax;
+  }
+  return usdWholeGroupAmount;
 }
 
 /* ---------- formatting ---------- */

@@ -61,8 +61,8 @@
         </div>
 
         <div class="calc-row">
-          <span class="k">Vehicle Rate <span class="badge config">Config</span></span>
-          <span class="v num" id="vehicle-rate">—</span>
+          <span class="k">Vehicle Rate (LKR/km) <span class="badge editable">Editable</span></span>
+          <input type="number" id="f-rate-km" style="width:110px;border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;font-size:13px;text-align:right;font-weight:800;">
         </div>
         <div class="calc-row">
           <span class="k">Transport Cost (LKR) <span class="expr" id="transport-expr"></span></span>
@@ -77,14 +77,31 @@
           <span class="v num" id="transport-usd">—</span>
         </div>
         <div class="calc-divider"></div>
+
         <div class="calc-row">
-          <span class="k">Driver Bata <span class="expr" id="bata-expr"></span> <span class="badge config">Config</span></span>
-          <span class="v num" id="bata-total">—</span>
+          <span class="k">Driver Bata Rate (LKR/day) <span class="badge editable">Editable</span></span>
+          <input type="number" id="f-bata-rate" style="width:110px;border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;font-size:13px;text-align:right;font-weight:800;">
         </div>
         <div class="calc-row">
-          <span class="k">Misc Expenses (USD) <span class="badge editable">Editable</span></span>
-          <input type="number" id="f-misc" value="${itinerary.transport.miscUsd || 0}" style="width:100px;border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;font-size:13px;text-align:right;">
+          <span class="k">Driver Bata (LKR) <span class="expr" id="bata-expr"></span></span>
+          <span class="v num" id="bata-lkr">—</span>
         </div>
+        <div class="calc-row">
+          <span class="k">Driver Bata (USD)</span>
+          <span class="v num" id="bata-usd">—</span>
+        </div>
+
+        <div id="guide-fee-block"></div>
+
+        <div class="calc-divider"></div>
+        <div class="card-title" style="font-size:13px;margin:10px 0;">Misc Expenses <span class="badge editable">Editable</span></div>
+        <div class="chip-input-row">
+          <input id="f-misc-desc" placeholder="Description, e.g. Bottled water" style="flex:1.4;border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;font-size:13.5px;">
+          <input id="f-misc-amt" type="number" min="0" placeholder="Amount (USD)">
+          <button class="btn ghost" id="btn-add-misc">Add</button>
+        </div>
+        <div class="chips" id="misc-chips"></div>
+
         <div class="calc-divider"></div>
         <div class="calc-row" style="font-size:15px;">
           <span class="k">Total Transportation (USD)</span>
@@ -121,17 +138,66 @@
     });
   }
 
+  function renderMiscChips() {
+    const wrap = document.getElementById('misc-chips');
+    const list = itinerary.transport.miscExpenses || [];
+    wrap.innerHTML = list.map((m, i) => `
+      <div class="chip">${m.description || 'Misc'} · ${fmtUsd(Number(m.amountUsd) || 0)} <span class="x" data-idx="${i}">✕</span></div>
+    `).join('') || '<span style="color:var(--slate-soft);font-size:12.5px;">No misc expenses yet.</span>';
+    wrap.querySelectorAll('.x').forEach(x => {
+      x.addEventListener('click', () => {
+        itinerary.transport.miscExpenses.splice(Number(x.dataset.idx), 1);
+        saveItinerary(itinerary);
+        renderAll();
+      });
+    });
+  }
+
+  function renderGuideFeeBlock(breakdown) {
+    const wrap = document.getElementById('guide-fee-block');
+    if (!breakdown.hasGuideFee) { wrap.innerHTML = ''; return; }
+    wrap.innerHTML = `
+      <div class="calc-divider"></div>
+      <div class="calc-row">
+        <span class="k">Guide Fee Rate (LKR/day) <span class="badge editable">Editable</span></span>
+        <input type="number" id="f-guide-rate" value="${breakdown.guideFeeRateLkr}" style="width:110px;border:1.5px solid var(--border);border-radius:8px;padding:6px 9px;font-size:13px;text-align:right;font-weight:800;">
+      </div>
+      <div class="calc-row">
+        <span class="k">Guide Fee (LKR) <span class="expr">${breakdown.guideFeeRateLkr}/day × ${breakdown.days} days</span></span>
+        <span class="v num">${fmtLkr(breakdown.guideFeeLkr)}</span>
+      </div>
+      <div class="calc-row">
+        <span class="k">Guide Fee (USD)</span>
+        <span class="v num">${fmtUsd(breakdown.guideFeeUsd)}</span>
+      </div>
+    `;
+    document.getElementById('f-guide-rate').addEventListener('input', (e) => {
+      itinerary.transport.guideFeeOverrideLkrPerDay = Number(e.target.value) || 0;
+      saveItinerary(itinerary);
+      renderAll();
+    });
+  }
+
   function renderAll() {
     renderChips();
+    renderMiscChips();
     const breakdown = computeTransportBreakdown(itinerary, cfg.vehicles, cfg.pricingSettings);
+
     document.getElementById('total-mileage').textContent = `${breakdown.totalKm} km`;
     document.getElementById('vehicle-name').textContent = breakdown.vehicle.name;
-    document.getElementById('vehicle-rate').textContent = `LKR ${breakdown.vehicle.ratePerKmLkr} / km`;
-    document.getElementById('transport-expr').textContent = `${breakdown.totalKm} km × LKR ${breakdown.vehicle.ratePerKmLkr}`;
+
+    document.getElementById('f-rate-km').value = breakdown.ratePerKmLkr;
+    document.getElementById('transport-expr').textContent = `${breakdown.totalKm} km × LKR ${breakdown.ratePerKmLkr}`;
     document.getElementById('transport-lkr').textContent = fmtLkr(breakdown.transportLkr);
     document.getElementById('transport-usd').textContent = fmtUsd(breakdown.transportUsd);
-    document.getElementById('bata-expr').textContent = `$${breakdown.vehicle.driverBataPerDayUsd}/day × ${breakdown.days} days`;
-    document.getElementById('bata-total').textContent = fmtUsd(breakdown.driverBata);
+
+    document.getElementById('f-bata-rate').value = breakdown.driverBataRateLkr;
+    document.getElementById('bata-expr').textContent = `LKR ${breakdown.driverBataRateLkr}/day × ${breakdown.days} days`;
+    document.getElementById('bata-lkr').textContent = fmtLkr(breakdown.driverBataLkr);
+    document.getElementById('bata-usd').textContent = fmtUsd(breakdown.driverBataUsd);
+
+    renderGuideFeeBlock(breakdown);
+
     document.getElementById('transport-total').textContent = fmtUsd(breakdown.subtotal);
     renderLedger(breakdown);
   }
@@ -139,6 +205,9 @@
   function renderLedger(breakdown) {
     const lb = document.getElementById('ledger-body');
     const accSubtotal = computeAccommodationSubtotal(itinerary);
+    const guideLine = breakdown.hasGuideFee
+      ? `<div class="ledger-line"><span class="k">Guide Fee</span><span class="v">${fmtUsd(breakdown.guideFeeUsd)}</span></div>`
+      : '';
     lb.innerHTML = `
       <div class="ledger-section">
         <div class="ledger-section-title">Trip Basics</div>
@@ -151,7 +220,8 @@
       <div class="ledger-section">
         <div class="ledger-section-title">Transportation</div>
         <div class="ledger-line"><span class="k">Mileage (${breakdown.totalKm} km)</span><span class="v">${fmtUsd(breakdown.transportUsd)}</span></div>
-        <div class="ledger-line"><span class="k">Driver Bata</span><span class="v">${fmtUsd(breakdown.driverBata)}</span></div>
+        <div class="ledger-line"><span class="k">Driver Bata</span><span class="v">${fmtUsd(breakdown.driverBataUsd)}</span></div>
+        ${guideLine}
         <div class="ledger-line"><span class="k">Misc Expenses</span><span class="v">${fmtUsd(breakdown.misc)}</span></div>
         <div class="ledger-subtotal"><span>Subtotal</span><span>${fmtUsd(breakdown.subtotal)}</span></div>
       </div>
@@ -177,15 +247,38 @@
     if (e.key === 'Enter') document.getElementById('btn-add-km').click();
   });
 
+  document.getElementById('btn-add-misc').addEventListener('click', () => {
+    const description = document.getElementById('f-misc-desc').value.trim();
+    const amountUsd = Number(document.getElementById('f-misc-amt').value);
+    if (!description) { toast('Enter a description.'); return; }
+    if (!amountUsd || amountUsd <= 0) { toast('Enter an amount greater than 0.'); return; }
+    itinerary.transport.miscExpenses = itinerary.transport.miscExpenses || [];
+    itinerary.transport.miscExpenses.push({ description, amountUsd });
+    saveItinerary(itinerary);
+    document.getElementById('f-misc-desc').value = '';
+    document.getElementById('f-misc-amt').value = '';
+    document.getElementById('f-misc-desc').focus();
+    renderAll();
+  });
+
   document.getElementById('f-vehicle').addEventListener('change', (e) => {
     itinerary.transport.vehicleId = e.target.value;
     itinerary.transport.vehicleOverridden = true;
+    itinerary.transport.rateOverrideLkrPerKm = null;
+    itinerary.transport.driverBataOverrideLkrPerDay = null;
+    itinerary.transport.guideFeeOverrideLkrPerDay = null;
     saveItinerary(itinerary);
     renderAll();
   });
 
-  document.getElementById('f-misc').addEventListener('input', (e) => {
-    itinerary.transport.miscUsd = Number(e.target.value) || 0;
+  document.getElementById('f-rate-km').addEventListener('input', (e) => {
+    itinerary.transport.rateOverrideLkrPerKm = Number(e.target.value) || 0;
+    saveItinerary(itinerary);
+    renderAll();
+  });
+
+  document.getElementById('f-bata-rate').addEventListener('input', (e) => {
+    itinerary.transport.driverBataOverrideLkrPerDay = Number(e.target.value) || 0;
     saveItinerary(itinerary);
     renderAll();
   });

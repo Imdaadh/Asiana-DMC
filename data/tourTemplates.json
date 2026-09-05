@@ -1,26 +1,80 @@
 {
   "kandy": {
-    "arrival": "Arrive at Colombo International Airport. Meet & greet by our representative and proceed to Kandy, stopping en route to visit the Pinnawala Elephant Orphanage. Upon reaching Kandy, explore the city with a guided city tour. Later, check in and relax at the hotel.",
-    "transitIn": "Travel to Kandy, stopping en route at scenic points of interest along the way. Upon arrival, explore Kandy with a guided city tour before checking in and relaxing at the hotel.",
-    "extra": [
-      "Full day at leisure in Kandy — visit the Temple of the Tooth Relic, the Royal Botanical Gardens at Peradeniya, and explore the local markets around the lake."
-    ],
-    "departure": "Breakfast at the hotel. Later, transfer to the airport in time for your departure flight — leaving Sri Lanka with beautiful memories."
+    "arrival": {
+      "options": [
+        { "id": "kandy-arrival-pinnawala", "label": "Via Pinnawala Elephant Orphanage (default)", "description": "Arrive at Colombo International Airport. Meet & greet by our representative and proceed to Kandy, stopping en route to visit the Pinnawala Elephant Orphanage. Upon reaching Kandy, explore the city with a guided city tour. Later, check in and relax at the hotel." },
+        { "id": "kandy-arrival-direct", "label": "Direct to Kandy (no stops)", "description": "Arrive at Colombo International Airport. Meet & greet by our representative and transfer directly to Kandy. Check in and relax at the hotel — city tour to follow the next morning." }
+      ]
+    },
+    "transitIn": {
+      "options": [
+        { "id": "kandy-transit-scenic", "label": "Scenic Route + City Tour (default)", "description": "Travel to Kandy, stopping en route at scenic points of interest along the way. Upon arrival, explore Kandy with a guided city tour before checking in and relaxing at the hotel." },
+        { "id": "kandy-transit-tea", "label": "Via a Tea Factory Stop", "description": "Travel to Kandy, stopping en route to visit a working tea factory and plantation. Upon arrival, check in and relax at the hotel." }
+      ]
+    },
+    "extra": {
+      "options": [
+        { "id": "kandy-extra-leisure", "label": "Kandy City Tour (default)", "description": "Full day at leisure in Kandy — visit the Temple of the Tooth Relic, the Royal Botanical Gardens at Peradeniya, and explore the local markets around the lake." },
+        { "id": "kandy-extra-sigiriya", "label": "Kandy → Sigiriya Day Trip", "description": "Full day excursion to Sigiriya — climb the iconic Sigiriya Rock Fortress and visit the nearby Dambulla Cave Temple, returning to Kandy in the evening." }
+      ]
+    },
+    "departure": {
+      "options": [
+        { "id": "kandy-departure-default", "label": "Breakfast & Airport Transfer (default)", "description": "Breakfast at the hotel. Later, transfer to the airport in time for your departure flight — leaving Sri Lanka with beautiful memories." },
+        { "id": "kandy-departure-shopping", "label": "Shopping Stop Before Airport", "description": "Breakfast at the hotel. En route to the airport, stop for last-minute souvenir shopping before your departure flight." }
+      ]
+    }
   },
   "bentota": {
-    "arrival": "Arrive at Colombo International Airport. Meet & greet by our representative and proceed directly to Bentota. Check in and relax at the resort.",
-    "transitIn": "Proceed to Bentota through scenic countryside and coastal landscapes. Upon arrival, enjoy leisure time at Bentota Beach and relax at the resort.",
-    "extra": [
-      "Explore Bentota — take part in a Madu River boat ride, visit the Turtle Centre and try the Fish Spa, or spend the day at leisure with optional water sports."
-    ],
-    "departure": "Breakfast at the hotel. Later, transfer to the airport in time for your departure flight — leaving Sri Lanka with beautiful memories."
+    "arrival": {
+      "options": [
+        { "id": "bentota-arrival-direct", "label": "Direct to Bentota (default)", "description": "Arrive at Colombo International Airport. Meet & greet by our representative and proceed directly to Bentota. Check in and relax at the resort." },
+        { "id": "bentota-arrival-galle", "label": "Via Galle Fort", "description": "Arrive at Colombo International Airport. Meet & greet by our representative and proceed to Bentota via a stop at the historic Galle Fort. Check in and relax at the resort." }
+      ]
+    },
+    "transitIn": {
+      "options": [
+        { "id": "bentota-transit-coastal", "label": "Coastal Drive + Beach Leisure (default)", "description": "Proceed to Bentota through scenic countryside and coastal landscapes. Upon arrival, enjoy leisure time at Bentota Beach and relax at the resort." },
+        { "id": "bentota-transit-turtle", "label": "Via Turtle Hatchery", "description": "Proceed to Bentota, stopping en route to visit a sea turtle hatchery. Upon arrival, check in and relax at the resort." }
+      ]
+    },
+    "extra": {
+      "options": [
+        { "id": "bentota-extra-river", "label": "Madu River & Turtle Centre (default)", "description": "Explore Bentota — take part in a Madu River boat ride, visit the Turtle Centre and try the Fish Spa, or spend the day at leisure with optional water sports." },
+        { "id": "bentota-extra-watersports", "label": "Water Sports Day", "description": "Full day at leisure in Bentota with optional water sports — jet skiing, banana boat rides, and windsurfing available at the beach." }
+      ]
+    },
+    "departure": {
+      "options": [
+        { "id": "bentota-departure-default", "label": "Breakfast & Airport Transfer (default)", "description": "Breakfast at the hotel. Later, transfer to the airport in time for your departure flight — leaving Sri Lanka with beautiful memories." },
+        { "id": "bentota-departure-spa", "label": "Morning Spa Before Departure", "description": "Breakfast at the hotel, followed by a relaxing spa treatment. Later, transfer to the airport in time for your departure flight." }
+      ]
+    }
   },
   "colombo": {
-    "arrival": "Arrive at Colombo International Airport. Meet & greet by our representative and transfer directly to your hotel in Colombo.",
-    "transitIn": "Drive to Colombo, enjoying a city tour covering Independence Square, Galle Face Green, Gangaramaya Temple and the Old Parliament. Finish the day with some shopping.",
-    "extra": [
-      "Full day at leisure in Colombo, with time for shopping and optional excursions."
-    ],
-    "departure": "Breakfast at the hotel. Later, transfer to the airport in time for your departure flight — leaving Sri Lanka with beautiful memories."
+    "arrival": {
+      "options": [
+        { "id": "colombo-arrival-direct", "label": "Direct to Hotel (default)", "description": "Arrive at Colombo International Airport. Meet & greet by our representative and transfer directly to your hotel in Colombo." },
+        { "id": "colombo-arrival-citytour", "label": "Arrival + Evening City Tour", "description": "Arrive at Colombo International Airport. Meet & greet by our representative and transfer to your hotel, followed by a short evening city tour." }
+      ]
+    },
+    "transitIn": {
+      "options": [
+        { "id": "colombo-transit-citytour", "label": "City Tour + Shopping (default)", "description": "Drive to Colombo, enjoying a city tour covering Independence Square, Galle Face Green, Gangaramaya Temple and the Old Parliament. Finish the day with some shopping." },
+        { "id": "colombo-transit-direct", "label": "Direct to Hotel, No Sightseeing", "description": "Drive to Colombo and check in directly at the hotel — a free evening to rest before departure." }
+      ]
+    },
+    "extra": {
+      "options": [
+        { "id": "colombo-extra-leisure", "label": "Leisure & Shopping (default)", "description": "Full day at leisure in Colombo, with time for shopping and optional excursions." },
+        { "id": "colombo-extra-museum", "label": "Museum & Gem Gallery Tour", "description": "Full day exploring Colombo's National Museum and a guided visit to a gem gallery, with free time for shopping in the afternoon." }
+      ]
+    },
+    "departure": {
+      "options": [
+        { "id": "colombo-departure-default", "label": "Breakfast & Airport Transfer (default)", "description": "Breakfast at the hotel. Later, transfer to the airport in time for your departure flight — leaving Sri Lanka with beautiful memories." },
+        { "id": "colombo-departure-lastminute", "label": "Last-Minute City Stop", "description": "Breakfast at the hotel. En route to the airport, a brief stop at a local market for last-minute shopping before your departure flight." }
+      ]
+    }
   }
 }

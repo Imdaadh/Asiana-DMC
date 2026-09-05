@@ -40,9 +40,14 @@
     font-family: -apple-system, sans-serif;
   }
 
-  .day { margin-bottom: 16px; }
-  .day-head { font-weight: 700; font-size: 14.5px; color: #14123A; }
-  .day-desc { font-size: 13.5px; margin: 4px 0 4px; }
+  .day { margin-bottom: 18px; }
+  .day-head { font-weight: 700; font-size: 14.5px; color: #14123A; display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+  .day-head .fixed { white-space: nowrap; }
+  .day-select {
+    font-family: -apple-system, sans-serif; font-size: 11.5px; font-weight: 700; color: #4338CA;
+    border: 1px solid #C7D2FE; background: #EEF2FF; border-radius: 6px; padding: 3px 6px; cursor: pointer;
+  }
+  .day-desc { font-size: 13.5px; margin: 6px 0 4px; }
   .day-overnight { font-size: 12.5px; font-style: italic; color: #444; }
 
   table.doc-table { width: 100%; border-collapse: collapse; font-family: -apple-system, sans-serif; font-size: 13px; }
@@ -54,8 +59,7 @@
 
   .cost-line { font-family: -apple-system, sans-serif; }
   .cost-headline { font-size: 13px; font-weight: 700; background: #FEF9C3; display: inline-block; padding: 3px 8px; border-radius: 4px; }
-  .cost-amount { font-size: 15px; font-weight: 700; margin-top: 6px; }
-  .breakdown-row { display: flex; gap: 32px; margin-top: 6px; }
+  .cost-amount { font-size: 15px; font-weight: 700; margin-top: 8px; }
 
   .two-col { display: flex; gap: 40px; font-family: -apple-system, sans-serif; font-size: 13px; }
   .two-col > div { flex: 1; }
@@ -64,16 +68,27 @@
   ul.doc-list li { margin-bottom: 5px; }
 
   .policy-row { display: flex; justify-content: space-between; font-family: -apple-system, sans-serif; font-size: 13px; padding: 5px 0; border-bottom: 1px solid #EEE; }
+  .policy-row .charge { font-weight: 700; }
 
   .footer { margin-top: 36px; padding-top: 16px; border-top: 1.5px solid #D8D8E8; text-align: center; font-family: -apple-system, sans-serif; }
   .footer .placeholder { font-size: 15px; font-weight: 800; color: #4338CA; letter-spacing: 0.02em; }
   .footer .note { font-size: 11px; color: #94A3B8; margin-top: 4px; }
+
+  .editable-hint {
+    font-family: -apple-system, sans-serif; font-size: 11.5px; color: #4338CA; background: #EEF2FF;
+    border: 1px solid #C7D2FE; border-radius: 8px; padding: 8px 12px; margin-bottom: 22px;
+  }
+
+  [contenteditable="true"] { border-radius: 4px; padding: 1px 3px; margin: -1px -3px; }
+  [contenteditable="true"]:hover { outline: 1.5px dashed #C7D2FE; background: #FAFAFF; }
+  [contenteditable="true"]:focus { outline: 1.5px solid #4338CA; background: #FAFAFF; }
 
   @media print {
     .no-print { display: none !important; }
     body { background: #fff; }
     .sheet-wrap { margin: 0; max-width: none; }
     .sheet { box-shadow: none; border-radius: 0; padding: 0.4in 0.5in; }
+    [contenteditable="true"]:hover, [contenteditable="true"]:focus { outline: none; background: none; }
     @page { margin: 0.5in; }
   }
 </style>
@@ -91,6 +106,7 @@
 </div>
 
 <div class="sheet-wrap">
+  <div class="no-print editable-hint">Every field below is editable for this client — click any text to change it, or use the dropdown on a day to swap its route. Edits are saved to this itinerary only and don't change the underlying Config data.</div>
   <div class="sheet" id="doc"></div>
 </div>
 
@@ -112,118 +128,199 @@
 
   const pricing = computePricing(itinerary, cfg.vehicles, cfg.pricingSettings);
   const { nights, days: totalDays } = nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate);
-  const dayPlan = buildItineraryDays(itinerary, tourTemplates);
-  const pax = pricing.pax;
+  const nationality = itinerary.tripBasics.nationality;
   const repHotel = itinerary.hotels[0] || {};
+  const repRoom = (repHotel.roomMix && repHotel.roomMix[0]) || {};
 
-  const paxLabel = [
-    `${itinerary.tripBasics.adults} Adult${itinerary.tripBasics.adults === 1 ? '' : 's'}`,
-    itinerary.tripBasics.children ? `${itinerary.tripBasics.children} Child${itinerary.tripBasics.children === 1 ? '' : 'ren'}` : null,
-  ].filter(Boolean).join(' + ') + ` – ${itinerary.tripBasics.nationality} Nationals`;
+  function feeFor(site) {
+    const byNat = site.feesByNationality || {};
+    return byNat[nationality] != null ? byNat[nationality] : byNat['Other'];
+  }
 
-  const mode = itinerary.pricing.displayMode || 'perPerson';
-  const costAmountHtml = mode === 'perPerson'
-    ? `<div class="cost-amount">${fmtUsd(pricing.perPerson)} per person sharing a ${repHotel.occupancy || ''} Room x ${pax} pax (${repHotel.rooms || ''} ${repHotel.occupancy || ''} Room${repHotel.rooms === 1 ? '' : 's'})</div>`
-    : `<div class="breakdown-row">
-         <div><b>Accommodation:</b> ${fmtUsd(pricing.accommodation * (1 + pricing.markupPercent / 100))}</div>
-         <div><b>Transportation:</b> ${fmtUsd(pricing.transport.subtotal * (1 + pricing.markupPercent / 100))}</div>
-         <div><b>Grand Total:</b> ${fmtUsd(pricing.grandTotal)}</div>
-       </div>`;
+  function seedOverrides() {
+    const dayPlan = buildItineraryDays(itinerary, tourTemplates);
+    const paxLabel = [
+      `${itinerary.tripBasics.adults} Adult${itinerary.tripBasics.adults === 1 ? '' : 's'}`,
+      itinerary.tripBasics.children ? `${itinerary.tripBasics.children} Child${itinerary.tripBasics.children === 1 ? '' : 'ren'}` : null,
+    ].filter(Boolean).join(' + ') + ` – ${nationality} Nationals`;
 
-  const hotelRows = itinerary.hotels.map(h => `
-    <tr>
-      <td>${h.cityName}</td>
-      <td>${h.nights}</td>
-      <td>${h.hotelName} (${h.star}★)</td>
-      <td>${h.occupancy} · ${h.category}</td>
-    </tr>`).join('');
+    const mode = itinerary.pricing.displayMode || 'perPerson';
+    const totalRooms = itinerary.hotels.reduce((s, h) => s + h.roomMix.reduce((s2, r) => s2 + r.rooms, 0), 0);
+    const costAmountText = mode === 'perPerson'
+      ? `${fmtUsd(pricing.perPerson)} per person sharing a ${repRoom.occupancy || ''} Room x ${pricing.pax} pax (${totalRooms} room${totalRooms === 1 ? '' : 's'})`
+      : `Accommodation: ${fmtUsd(pricing.accommodation * (1 + pricing.markupPercent / 100))} · Transportation: ${fmtUsd(pricing.transport.subtotal * (1 + pricing.markupPercent / 100))} · Grand Total: ${fmtUsd(pricing.grandTotal)}`;
 
-  const dayHtml = dayPlan.map(d => `
-    <div class="day">
-      <div class="day-head">Day ${d.dayNum} – ${fmtDayDate(d.date)} | ${d.route}</div>
-      <div class="day-desc">${d.description}</div>
-      ${d.overnightCity ? `<div class="day-overnight">Overnight Stay: ${d.overnightCity}</div>` : ''}
-    </div>`).join('');
+    return {
+      days: dayPlan.map(d => ({
+        dayNum: d.dayNum, date: d.date.toISOString(), route: d.route, description: d.description,
+        overnightCity: d.overnightCity, cityId: d.cityId, category: d.category, optionId: d.optionId,
+      })),
+      hotelRows: itinerary.hotels.map(h => ({
+        cityName: h.cityName, nights: String(h.nights),
+        hotelLabel: `${h.hotelName} (${h.star}★)`,
+        roomLabel: h.roomMix.map(r => `${r.rooms} ${r.occupancy} · ${r.category}`).join(' + '),
+      })),
+      costHeadline: paxLabel,
+      costAmountText,
+      includes: [...inclExcl.includes],
+      excludes: [...inclExcl.excludes],
+      entranceFees: entranceFees.map(f => ({ site: f.site, price: feeFor(f) })),
+      checkIn: inclExcl.checkInCheckOut.checkIn,
+      checkOut: inclExcl.checkInCheckOut.checkOut,
+      importantNotes: [...inclExcl.importantNotes],
+      cancellationPolicy: inclExcl.cancellationPolicy.map(p => ({ ...p })),
+      complimentary: [...inclExcl.complimentary],
+    };
+  }
 
-  const entranceFeeRows = entranceFees.map(f => `
-    <tr><td>${f.name}</td><td>$${f.priceUsd}</td></tr>`).join('');
+  if (!itinerary.previewOverrides) {
+    itinerary.previewOverrides = seedOverrides();
+    saveItinerary(itinerary);
+  }
 
-  const cancellationRows = inclExcl.cancellationPolicy.map(p => `
-    <div class="policy-row"><span>${p.window}</span><span><b>${p.charge}</b></span></div>`).join('');
+  function setByPath(obj, path, rawValue) {
+    const parts = path.split('.');
+    let cur = obj;
+    for (let i = 0; i < parts.length - 1; i++) cur = cur[parts[i]];
+    const last = parts[parts.length - 1];
+    const wasNumber = typeof cur[last] === 'number';
+    cur[last] = wasNumber ? (Number(rawValue) || 0) : rawValue;
+  }
 
-  document.getElementById('doc').innerHTML = `
-    <div class="doc-title">SRI LANKA ITINERARY ${nights}N–${totalDays}D</div>
-    <div class="doc-sub">Prepared for ${itinerary.tripBasics.clientName} · ${itinerary.tripBasics.arrivalDate} to ${itinerary.tripBasics.departureDate}</div>
+  function ce(path, value, extraStyle) {
+    return `<span contenteditable="true" data-path="${path}"${extraStyle ? ` style="${extraStyle}"` : ''}>${value}</span>`;
+  }
 
-    <div class="section">
-      <div class="section-title">Day-by-Day Itinerary</div>
-      ${dayHtml}
-    </div>
+  function renderDoc() {
+    const ov = itinerary.previewOverrides;
 
-    <div class="section">
-      <div class="section-title">Hotels</div>
-      <table class="doc-table">
-        <thead><tr><th>City</th><th>Nights</th><th>Hotel</th><th>Room</th></tr></thead>
-        <tbody>${hotelRows}</tbody>
-      </table>
-    </div>
+    const dayHtml = ov.days.map((d, i) => {
+      const opts = templateOptionsFor(tourTemplates, d.cityId, d.category);
+      const selectHtml = opts.length > 1 ? `
+        <select class="day-select no-print" data-idx="${i}" data-city-id="${d.cityId}" data-category="${d.category}">
+          ${opts.map(o => `<option value="${o.id}" ${o.id === d.optionId ? 'selected' : ''}>${o.label}</option>`).join('')}
+        </select>` : '';
+      return `
+        <div class="day">
+          <div class="day-head">
+            <span class="fixed">Day ${d.dayNum} – ${fmtDayDate(new Date(d.date))} | ${ce(`days.${i}.route`, d.route)}</span>
+            ${selectHtml}
+          </div>
+          <div class="day-desc">${ce(`days.${i}.description`, d.description)}</div>
+          ${d.overnightCity ? `<div class="day-overnight">Overnight Stay: ${ce(`days.${i}.overnightCity`, d.overnightCity)}</div>` : ''}
+        </div>`;
+    }).join('');
 
-    <div class="section cost-line">
-      <div class="section-title">Cost</div>
-      <div class="cost-headline">${paxLabel}</div>
-      ${costAmountHtml}
-    </div>
+    const hotelRows = ov.hotelRows.map((h, i) => `
+      <tr>
+        <td>${ce(`hotelRows.${i}.cityName`, h.cityName)}</td>
+        <td>${ce(`hotelRows.${i}.nights`, h.nights)}</td>
+        <td>${ce(`hotelRows.${i}.hotelLabel`, h.hotelLabel)}</td>
+        <td>${ce(`hotelRows.${i}.roomLabel`, h.roomLabel)}</td>
+      </tr>`).join('');
 
-    <div class="section two-col">
-      <div>
-        <h4>Cost Includes</h4>
-        <ul class="doc-list">${inclExcl.includes.map(i => `<li>${i}</li>`).join('')}</ul>
+    const entranceFeeRows = ov.entranceFees.map((f, i) => `
+      <tr><td>${ce(`entranceFees.${i}.site`, f.site)}</td><td>$${ce(`entranceFees.${i}.price`, f.price)}</td></tr>`).join('');
+
+    const cancellationRows = ov.cancellationPolicy.map((p, i) => `
+      <div class="policy-row"><span>${ce(`cancellationPolicy.${i}.window`, p.window)}</span><span class="charge">${ce(`cancellationPolicy.${i}.charge`, p.charge)}</span></div>`).join('');
+
+    document.getElementById('doc').innerHTML = `
+      <div class="doc-title">SRI LANKA ITINERARY ${nights}N–${totalDays}D</div>
+      <div class="doc-sub">Prepared for ${itinerary.tripBasics.clientName} · ${itinerary.tripBasics.arrivalDate} to ${itinerary.tripBasics.departureDate}</div>
+
+      <div class="section">
+        <div class="section-title">Day-by-Day Itinerary</div>
+        ${dayHtml}
       </div>
-      <div>
-        <h4>Cost Excludes</h4>
-        <ul class="doc-list">${inclExcl.excludes.map(i => `<li>${i}</li>`).join('')}</ul>
+
+      <div class="section">
+        <div class="section-title">Hotels</div>
+        <table class="doc-table">
+          <thead><tr><th>City</th><th>Nights</th><th>Hotel</th><th>Room</th></tr></thead>
+          <tbody>${hotelRows}</tbody>
+        </table>
       </div>
-    </div>
 
-    <div class="section">
-      <div class="section-title">Entrance Fees (per person)</div>
-      <table class="doc-table">
-        <thead><tr><th>Attraction</th><th>Price</th></tr></thead>
-        <tbody>${entranceFeeRows}</tbody>
-      </table>
-    </div>
-
-    <div class="section two-col">
-      <div>
-        <h4>Check-in / Check-out</h4>
-        <ul class="doc-list">
-          <li>Check-in time at all hotels is ${inclExcl.checkInCheckOut.checkIn}.</li>
-          <li>Check-out time at all hotels is ${inclExcl.checkInCheckOut.checkOut}.</li>
-        </ul>
+      <div class="section cost-line">
+        <div class="section-title">Cost</div>
+        <div class="cost-headline">${ce('costHeadline', ov.costHeadline)}</div>
+        <div class="cost-amount">${ce('costAmountText', ov.costAmountText)}</div>
       </div>
-      <div>
-        <h4>Important Note</h4>
-        <ul class="doc-list">${inclExcl.importantNotes.map(i => `<li>${i}</li>`).join('')}</ul>
+
+      <div class="section two-col">
+        <div>
+          <h4>Cost Includes</h4>
+          <ul class="doc-list">${ov.includes.map((t, i) => `<li>${ce(`includes.${i}`, t)}</li>`).join('')}</ul>
+        </div>
+        <div>
+          <h4>Cost Excludes</h4>
+          <ul class="doc-list">${ov.excludes.map((t, i) => `<li>${ce(`excludes.${i}`, t)}</li>`).join('')}</ul>
+        </div>
       </div>
-    </div>
 
-    <div class="section">
-      <div class="section-title">Cancellation Policy</div>
-      ${cancellationRows}
-    </div>
+      <div class="section">
+        <div class="section-title">Entrance Fees (per person, ${nationality} nationals)</div>
+        <table class="doc-table">
+          <thead><tr><th>Attraction</th><th>Price</th></tr></thead>
+          <tbody>${entranceFeeRows}</tbody>
+        </table>
+      </div>
 
-    <div class="section">
-      <div class="section-title">Complimentary</div>
-      <ul class="doc-list">${inclExcl.complimentary.map(i => `<li>${i}</li>`).join('')}</ul>
-    </div>
+      <div class="section two-col">
+        <div>
+          <h4>Check-in / Check-out</h4>
+          <ul class="doc-list">
+            <li>Check-in time at all hotels is ${ce('checkIn', ov.checkIn)}.</li>
+            <li>Check-out time at all hotels is ${ce('checkOut', ov.checkOut)}.</li>
+          </ul>
+        </div>
+        <div>
+          <h4>Important Note</h4>
+          <ul class="doc-list">${ov.importantNotes.map((t, i) => `<li>${ce(`importantNotes.${i}`, t)}</li>`).join('')}</ul>
+        </div>
+      </div>
 
-    <div class="footer">
-      <div class="placeholder">[ Your Company Name / Logo ]</div>
-      <div class="note">Branding placeholder — replace before sending to a client. Pricing is net, non-commissionable, and this is a quotation only; no bookings have been made.</div>
-    </div>
-  `;
+      <div class="section">
+        <div class="section-title">Cancellation Policy</div>
+        ${cancellationRows}
+      </div>
+
+      <div class="section">
+        <div class="section-title">Complimentary</div>
+        <ul class="doc-list">${ov.complimentary.map((t, i) => `<li>${ce(`complimentary.${i}`, t)}</li>`).join('')}</ul>
+      </div>
+
+      <div class="footer">
+        <div class="placeholder">[ Your Company Name / Logo ]</div>
+        <div class="note">Branding placeholder — replace before sending to a client. Pricing is net, non-commissionable, and this is a quotation only; no bookings have been made.</div>
+      </div>
+    `;
+
+    document.querySelectorAll('.day-select').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const idx = Number(e.target.dataset.idx);
+        const opts = templateOptionsFor(tourTemplates, e.target.dataset.cityId, e.target.dataset.category);
+        const opt = opts.find(o => o.id === e.target.value);
+        if (!opt) return;
+        itinerary.previewOverrides.days[idx].optionId = opt.id;
+        itinerary.previewOverrides.days[idx].description = opt.description;
+        saveItinerary(itinerary);
+        renderDoc();
+      });
+    });
+  }
+
+  document.getElementById('doc').addEventListener('input', (e) => {
+    const el = e.target.closest('[contenteditable]');
+    if (!el || !el.dataset.path) return;
+    setByPath(itinerary.previewOverrides, el.dataset.path, el.textContent);
+    saveItinerary(itinerary);
+  });
 
   document.getElementById('btn-print').addEventListener('click', () => window.print());
+
+  renderDoc();
 })();
 </script>
 </body>
