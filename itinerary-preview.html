@@ -113,10 +113,33 @@
 <script src="assets/app.js"></script>
 <script>
 (async function () {
-  const itinerary = ensureItinerary();
-  if (!itinerary.tripBasics.clientName || itinerary.hotels.length === 0 || itinerary.transport.mileageSegments.length === 0) {
-    window.location.href = 'trip-basics.html';
-    return;
+  const savedId = new URLSearchParams(window.location.search).get('savedId');
+  let itinerary, readOnly = false;
+
+  if (savedId) {
+    const savedList = await getSavedItineraries();
+    const saved = savedList.find(s => s.id === savedId);
+    if (!saved) {
+      toast('Saved itinerary not found.');
+      window.location.href = 'existing-itineraries.html';
+      return;
+    }
+    itinerary = saved.itinerarySnapshot;
+    readOnly = true;
+  } else {
+    itinerary = ensureItinerary();
+    if (!itinerary.tripBasics.clientName || itinerary.hotels.length === 0 || itinerary.transport.mileageSegments.length === 0) {
+      window.location.href = 'trip-basics.html';
+      return;
+    }
+  }
+
+  if (readOnly) {
+    document.querySelector('.toolbar .left').innerHTML = `
+      <a href="existing-itineraries.html">&larr; Back to Existing Itineraries</a>
+      <span>Viewing a saved itinerary — read-only</span>`;
+    document.querySelector('.editable-hint').textContent =
+      'You\'re viewing a saved itinerary. It\'s read-only here — go back and reopen the live costing flow to make changes.';
   }
 
   const [cfg, tourTemplates, inclExcl, entranceFees] = await Promise.all([
@@ -157,8 +180,8 @@
       })),
       hotelRows: itinerary.hotels.map(h => ({
         cityName: h.cityName, nights: String(h.nights),
-        hotelLabel: `${h.hotelName} (${h.star}★)`,
-        roomLabel: h.roomMix.map(r => `${r.rooms} ${r.occupancy} · ${r.category}`).join(' + '),
+        hotelLabel: h.selfBooking ? 'Self Booking (client-arranged)' : `${h.hotelName} (${h.star}★)`,
+        roomLabel: h.selfBooking ? '—' : h.roomMix.map(r => `${r.rooms} ${r.occupancy} · ${r.category}`).join(' + '),
       })),
       costHeadline: paxLabel,
       costAmountText,
@@ -175,7 +198,7 @@
 
   if (!itinerary.previewOverrides) {
     itinerary.previewOverrides = seedOverrides();
-    saveItinerary(itinerary);
+    if (!readOnly) saveItinerary(itinerary);
   }
 
   function setByPath(obj, path, rawValue) {
@@ -188,6 +211,7 @@
   }
 
   function ce(path, value, extraStyle) {
+    if (readOnly) return `<span${extraStyle ? ` style="${extraStyle}"` : ''}>${value}</span>`;
     return `<span contenteditable="true" data-path="${path}"${extraStyle ? ` style="${extraStyle}"` : ''}>${value}</span>`;
   }
 
@@ -196,7 +220,7 @@
 
     const dayHtml = ov.days.map((d, i) => {
       const opts = templateOptionsFor(tourTemplates, d.cityId, d.category);
-      const selectHtml = opts.length > 1 ? `
+      const selectHtml = (opts.length > 1 && !readOnly) ? `
         <select class="day-select no-print" data-idx="${i}" data-city-id="${d.cityId}" data-category="${d.category}">
           ${opts.map(o => `<option value="${o.id}" ${o.id === d.optionId ? 'selected' : ''}>${o.label}</option>`).join('')}
         </select>` : '';
@@ -297,6 +321,7 @@
       </div>
     `;
 
+    if (readOnly) return;
     document.querySelectorAll('.day-select').forEach(sel => {
       sel.addEventListener('change', (e) => {
         const idx = Number(e.target.dataset.idx);
@@ -311,12 +336,14 @@
     });
   }
 
-  document.getElementById('doc').addEventListener('input', (e) => {
-    const el = e.target.closest('[contenteditable]');
-    if (!el || !el.dataset.path) return;
-    setByPath(itinerary.previewOverrides, el.dataset.path, el.textContent);
-    saveItinerary(itinerary);
-  });
+  if (!readOnly) {
+    document.getElementById('doc').addEventListener('input', (e) => {
+      const el = e.target.closest('[contenteditable]');
+      if (!el || !el.dataset.path) return;
+      setByPath(itinerary.previewOverrides, el.dataset.path, el.textContent);
+      saveItinerary(itinerary);
+    });
+  }
 
   document.getElementById('btn-print').addEventListener('click', () => window.print());
 

@@ -95,6 +95,13 @@
 
       <div class="card">
         <div class="card-title">Add Hotel</div>
+
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:var(--ink);margin-bottom:16px;cursor:pointer;">
+          <input type="checkbox" id="f-self-booking" style="width:16px;height:16px;">
+          Self Booking
+          <span style="font-weight:500;color:var(--slate);font-size:12.5px;">— the client books this city's hotel themselves; only nights + vehicle mileage are counted, no accommodation cost is added.</span>
+        </label>
+
         <div class="field-grid">
           <div class="field">
             <div class="field-label-row"><label>City</label><span class="badge config">Config</span></div>
@@ -105,62 +112,64 @@
             <input type="number" min="1" id="f-nights" value="1">
             <div id="nights-remaining-hint" style="margin-top:2px;font-size:11.5px;"></div>
           </div>
-          <div class="field span-2">
+          <div class="field span-2" id="hotel-field-wrap">
             <div class="field-label-row"><label>Hotel</label><span class="badge config">Config</span></div>
             <select id="f-hotel">${hotelOptions(defaultCity, defaultHotels[0].id)}</select>
           </div>
-          <div class="field span-2">
+          <div class="field span-2" id="meal-field-wrap">
             <div class="field-label-row"><label>Meal Plan</label><span class="badge config">Config</span></div>
             <select id="f-meal">${mealOptions('hb')}</select>
           </div>
         </div>
 
-        <div class="divider"></div>
-        <div class="card-title" style="margin-bottom:10px;font-size:13px;">Room Mix for this City <span class="badge editable">Room count required</span></div>
-        <div class="field-grid">
-          <div class="field">
-            <div class="field-label-row"><label>Occupancy</label><span class="badge config">Config</span></div>
-            <select id="f-occ">
-              <option value="Double">Double</option>
-              <option value="Single">Single</option>
-              <option value="Triple">Triple</option>
-            </select>
+        <div id="room-mix-section">
+          <div class="divider"></div>
+          <div class="card-title" style="margin-bottom:10px;font-size:13px;">Room Mix for this City <span class="badge editable">Room count required</span></div>
+          <div class="field-grid">
+            <div class="field">
+              <div class="field-label-row"><label>Occupancy</label><span class="badge config">Config</span></div>
+              <select id="f-occ">
+                <option value="Double">Double</option>
+                <option value="Single">Single</option>
+                <option value="Triple">Triple</option>
+              </select>
+            </div>
+            <div class="field">
+              <div class="field-label-row"><label>Room Category</label><span class="badge config">Config</span></div>
+              <select id="f-cat">
+                <option>Standard</option>
+                <option>Superior</option>
+                <option>Luxury</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Room Count <span style="color:#DC2626;">*</span></label>
+              <input type="number" min="1" id="f-rooms">
+            </div>
+            <div class="field">
+              <div class="field-label-row"><label>Rate / Room / Night</label><span class="badge editable">Editable</span></div>
+              <input type="number" id="f-rate" value="0">
+            </div>
+            <div class="field span-2">
+              <div class="field-label-row"><label>Meal Plan Override</label><span class="badge editable">Editable</span></div>
+              <select id="f-room-meal"></select>
+            </div>
+            <div class="field span-2">
+              <label>Calculation</label>
+              <div class="readonly-pill" id="f-calc" style="color:#475569;font-weight:600;">—</div>
+            </div>
+            <div class="field">
+              <label>Line Total</label>
+              <div class="readonly-pill" id="f-total">$0</div>
+            </div>
+            <div class="field" style="justify-content:flex-end;">
+              <button class="btn ghost" id="btn-add-row" type="button">+ Add Room Row</button>
+            </div>
           </div>
-          <div class="field">
-            <div class="field-label-row"><label>Room Category</label><span class="badge config">Config</span></div>
-            <select id="f-cat">
-              <option>Standard</option>
-              <option>Superior</option>
-              <option>Luxury</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Room Count <span style="color:#DC2626;">*</span></label>
-            <input type="number" min="1" id="f-rooms">
-          </div>
-          <div class="field">
-            <div class="field-label-row"><label>Rate / Room / Night</label><span class="badge editable">Editable</span></div>
-            <input type="number" id="f-rate" value="0">
-          </div>
-          <div class="field span-2">
-            <div class="field-label-row"><label>Meal Plan Override</label><span class="badge editable">Editable</span></div>
-            <select id="f-room-meal"></select>
-          </div>
-          <div class="field span-2">
-            <label>Calculation</label>
-            <div class="readonly-pill" id="f-calc" style="color:#475569;font-weight:600;">—</div>
-          </div>
-          <div class="field">
-            <label>Line Total</label>
-            <div class="readonly-pill" id="f-total">$0</div>
-          </div>
-          <div class="field" style="justify-content:flex-end;">
-            <button class="btn ghost" id="btn-add-row" type="button">+ Add Room Row</button>
-          </div>
-        </div>
 
-        <div class="room-mix-list" id="room-mix-list"></div>
-        <div class="coverage-line" id="coverage-line"></div>
+          <div class="room-mix-list" id="room-mix-list"></div>
+          <div class="coverage-line" id="coverage-line"></div>
+        </div>
 
         <div class="btn-row">
           <button class="btn primary" id="btn-add">+ Add to Itinerary</button>
@@ -191,6 +200,18 @@
 
   function currentHotelId() { return document.getElementById('f-hotel').value; }
   function currentNights() { return Number(document.getElementById('f-nights').value) || 1; }
+  function isSelfBooking() { return document.getElementById('f-self-booking').checked; }
+
+  function toggleSelfBookingUI() {
+    const self = isSelfBooking();
+    document.getElementById('hotel-field-wrap').style.display = self ? 'none' : '';
+    document.getElementById('meal-field-wrap').style.display = self ? 'none' : '';
+    document.getElementById('room-mix-section').style.display = self ? 'none' : '';
+    pendingRoomMix = [];
+    renderPendingList();
+    updateAddToItineraryState();
+  }
+  document.getElementById('f-self-booking').addEventListener('change', toggleSelfBookingUI);
 
   function remainingNights() {
     const tripNights = nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate).nights;
@@ -290,25 +311,21 @@
         });
       });
     }
-    const capacity = roomMixCapacity(pendingRoomMix);
     const covLine = document.getElementById('coverage-line');
     const totalRooms = pendingRoomMix.reduce((s, r) => s + r.rooms, 0);
     if (pendingRoomMix.length === 0) {
       covLine.textContent = '';
-    } else if (capacity < pax) {
-      covLine.className = 'coverage-line short';
-      covLine.textContent = `${totalRooms} room${totalRooms===1?'':'s'}: ${summarizeRoomMix(pendingRoomMix.map(r => ({...r, mealPlanName: effectiveMealName(r)})), hotelMealName)} — covers ${capacity} pax, but this trip has ${pax} — add another room.`;
     } else {
       covLine.className = 'coverage-line ok';
-      covLine.textContent = `${totalRooms} room${totalRooms===1?'':'s'}: ${summarizeRoomMix(pendingRoomMix.map(r => ({...r, mealPlanName: effectiveMealName(r)})), hotelMealName)} — ${capacity} pax covered.`;
+      covLine.textContent = `${totalRooms} room${totalRooms===1?'':'s'}: ${summarizeRoomMix(pendingRoomMix.map(r => ({...r, mealPlanName: effectiveMealName(r)})), hotelMealName)}`;
     }
     updateAddToItineraryState();
   }
 
   function updateAddToItineraryState() {
-    const capacity = roomMixCapacity(pendingRoomMix);
     const nightsOk = currentNights() <= remainingNights();
-    document.getElementById('btn-add').disabled = pendingRoomMix.length === 0 || capacity < pax || !nightsOk;
+    const self = isSelfBooking();
+    document.getElementById('btn-add').disabled = (!self && pendingRoomMix.length === 0) || !nightsOk;
   }
 
   document.getElementById('btn-add-row').addEventListener('click', () => {
@@ -335,7 +352,14 @@
       wrap.innerHTML = `<div class="empty-state"><div class="big">No hotels added yet</div>Add at least one city above to continue.</div>`;
       return;
     }
-    const rows = itinerary.hotels.map((h, i) => `
+    const rows = itinerary.hotels.map((h, i) => h.selfBooking ? `
+      <tr>
+        <td><span class="pill-city"><span class="pill-dot"></span>${h.cityName}</span></td>
+        <td>${h.nights}</td>
+        <td colspan="3"><span class="badge editable">Self Booking</span> client books their own hotel</td>
+        <td class="right num">$0</td>
+        <td class="right"><button class="icon-btn" data-idx="${i}">✕ Remove</button></td>
+      </tr>` : `
       <tr>
         <td><span class="pill-city"><span class="pill-dot"></span>${h.cityName}</span></td>
         <td>${h.nights}</td>
@@ -368,25 +392,19 @@
     const line = document.getElementById('nights-coverage-line');
     const tripNights = nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate).nights;
     const coveredNights = hotelsNightsTotal(itinerary);
-    const shortCapacityHotels = itinerary.hotels.filter(h => roomMixCapacity(h.roomMix) < pax);
+    const ok = coveredNights === tripNights;
 
-    let msg = '', ok = true;
-    if (coveredNights !== tripNights) {
-      ok = false;
-      msg = `Trip is ${tripNights} night${tripNights===1?'':'s'}, but hotel entries only cover ${coveredNights} night${coveredNights===1?'':'s'} — add or adjust hotel entries before continuing.`;
-    } else if (shortCapacityHotels.length > 0) {
-      ok = false;
-      msg = `${shortCapacityHotels.map(h => h.cityName).join(', ')} — room mix doesn't cover all ${pax} pax. Fix the room mix before continuing.`;
-    }
     line.className = ok ? 'coverage-line ok' : 'coverage-line short';
-    line.textContent = itinerary.hotels.length === 0 ? '' : (ok ? `✓ ${coveredNights} of ${tripNights} nights covered, all room mixes sufficient.` : msg);
+    line.textContent = itinerary.hotels.length === 0 ? '' : (ok
+      ? `✓ ${coveredNights} of ${tripNights} nights covered.`
+      : `Trip is ${tripNights} night${tripNights===1?'':'s'}, but hotel entries only cover ${coveredNights} night${coveredNights===1?'':'s'} — add or adjust hotel entries before continuing.`);
     document.getElementById('btn-continue').disabled = itinerary.hotels.length === 0 || !ok;
   }
 
   function renderLedger() {
     const lb = document.getElementById('ledger-body');
     const hotelLines = itinerary.hotels.map(h =>
-      `<div class="ledger-line"><span class="k">${h.cityName} (${h.nights}N)</span><span class="v">${fmtUsd(h.total)}</span></div>`).join('');
+      `<div class="ledger-line"><span class="k">${h.cityName} (${h.nights}N)${h.selfBooking ? ' · Self Booking' : ''}</span><span class="v">${fmtUsd(h.total)}</span></div>`).join('');
     const subtotal = computeAccommodationSubtotal(itinerary);
     lb.innerHTML = `
       <div class="ledger-section">
@@ -411,32 +429,44 @@
 
   document.getElementById('btn-add').addEventListener('click', () => {
     const cityId = document.getElementById('f-city').value;
-    const hotelId = document.getElementById('f-hotel').value;
     const city = cfg.cities.find(c => c.id === cityId);
-    const hotel = cfg.hotels.find(h => h.id === hotelId);
-    const mealPlanId = document.getElementById('f-meal').value;
-    const meal = cfg.mealPlans.find(m => m.id === mealPlanId);
     const nights = currentNights();
 
-    if (pendingRoomMix.length === 0) { toast('Add at least one room row first.'); return; }
-    if (roomMixCapacity(pendingRoomMix) < pax) { toast('Room mix does not cover all pax yet.'); return; }
     const remaining = remainingNights();
     if (nights > remaining) {
       toast(`Trip has ${remaining} night${remaining===1?'':'s'} left unallocated — reduce Nights for ${city.name} before adding.`);
       return;
     }
 
-    const roomMix = pendingRoomMix.map(r => ({
-      occupancy: r.occupancy, category: r.category, rooms: r.rooms, rate: r.rate,
-      mealPlanId: r.mealPlanOverrideId || mealPlanId,
-      mealPlanName: r.mealPlanOverrideId ? mealName(r.mealPlanOverrideId) : meal.name,
-      total: computeRoomLineTotal({ rate: r.rate, nights, rooms: r.rooms }),
-    }));
-    const hotelEntry = {
-      cityId, cityName: city.name, hotelId, hotelName: hotel.name, star: hotel.star,
-      nights, mealPlanId, mealPlanName: meal.name, roomMix,
-    };
-    hotelEntry.total = computeHotelTotal(hotelEntry);
+    let hotelEntry, label;
+    if (isSelfBooking()) {
+      hotelEntry = {
+        cityId, cityName: city.name, selfBooking: true,
+        hotelId: null, hotelName: null, star: null,
+        nights, mealPlanId: null, mealPlanName: null, roomMix: [], total: 0,
+      };
+      label = `${city.name} (self booking) added.`;
+    } else {
+      const hotelId = document.getElementById('f-hotel').value;
+      const hotel = cfg.hotels.find(h => h.id === hotelId);
+      const mealPlanId = document.getElementById('f-meal').value;
+      const meal = cfg.mealPlans.find(m => m.id === mealPlanId);
+
+      if (pendingRoomMix.length === 0) { toast('Add at least one room row first.'); return; }
+
+      const roomMix = pendingRoomMix.map(r => ({
+        occupancy: r.occupancy, category: r.category, rooms: r.rooms, rate: r.rate,
+        mealPlanId: r.mealPlanOverrideId || mealPlanId,
+        mealPlanName: r.mealPlanOverrideId ? mealName(r.mealPlanOverrideId) : meal.name,
+        total: computeRoomLineTotal({ rate: r.rate, nights, rooms: r.rooms }),
+      }));
+      hotelEntry = {
+        cityId, cityName: city.name, hotelId, hotelName: hotel.name, star: hotel.star,
+        nights, mealPlanId, mealPlanName: meal.name, roomMix,
+      };
+      hotelEntry.total = computeHotelTotal(hotelEntry);
+      label = `${hotel.name} added.`;
+    }
 
     itinerary.hotels.push(hotelEntry);
     saveItinerary(itinerary);
@@ -446,7 +476,7 @@
     renderLedger();
     renderValidation();
     updateNightsCheck();
-    toast(`${hotel.name} added.`);
+    toast(label);
   });
 
   document.getElementById('btn-back').addEventListener('click', () => window.location.href = 'trip-basics.html');

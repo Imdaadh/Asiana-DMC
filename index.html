@@ -11,58 +11,60 @@
 
 <script src="assets/app.js"></script>
 <script>
-renderChrome('chrome-mount', { activeStep: 0, breadcrumbSub: 'Dashboard' });
+(async function () {
+  renderChrome('chrome-mount', { activeStep: 0, activeNav: 'dashboard', breadcrumbSub: 'Dashboard' });
 
-const content = document.getElementById('page-content');
-content.style.gridTemplateColumns = '1fr';
-content.style.maxWidth = '760px';
+  const content = document.getElementById('page-content');
+  content.style.gridTemplateColumns = '1fr';
+  content.style.maxWidth = '760px';
 
-const savedCount = getSavedItineraries().length;
+  const savedCount = (await getSavedItineraries()).length;
 
-content.innerHTML = `
-  <h1 class="page-title">Welcome back, Operator</h1>
-  <p class="page-sub">This is a proof-of-concept build — see CLAUDE.md in the repo root for what's real vs. mocked right now.</p>
+  content.innerHTML = `
+    <h1 class="page-title">Welcome back, Operator</h1>
+    <p class="page-sub">This is a proof-of-concept build — see CLAUDE.md in the repo root for what's real vs. mocked right now.</p>
 
-  <div class="card">
-    <div class="card-title">Start a costing</div>
-    <p style="font-size:13.5px;color:var(--slate);margin:0 0 18px 0;">
-      Choose how you want to begin. Both paths go through the same 4-stage costing flow —
-      the sample just pre-fills it with a real example so you can see the whole thing calculate end to end.
-    </p>
-    <div class="btn-row" style="justify-content:flex-start;">
-      <button class="btn primary" id="btn-new">+ Start New Inquiry (Blank)</button>
-      <button class="btn ghost" id="btn-sample">&#9654; Load Sample Inquiry — Priyanshu Aggarwal</button>
+    <div class="card">
+      <div class="card-title">Start a costing</div>
+      <p style="font-size:13.5px;color:var(--slate);margin:0 0 18px 0;">
+        Choose how you want to begin. Both paths go through the same costing flow —
+        the sample just pre-fills it with a real example so you can see the whole thing calculate end to end.
+      </p>
+      <div class="btn-row" style="justify-content:flex-start;">
+        <button class="btn primary" id="btn-new">+ Start New Inquiry (Blank)</button>
+        <button class="btn ghost" id="btn-sample">&#9654; Load Sample Inquiry — Priyanshu Aggarwal</button>
+      </div>
     </div>
-  </div>
 
-  <div class="card">
-    <div class="card-title">Existing Itineraries</div>
-    <p style="font-size:13.5px;color:var(--slate);margin:0 0 14px 0;">
-      ${savedCount > 0
-        ? `You have <b>${savedCount}</b> itinerary saved in this browser this session.`
-        : `Search and reuse past itineraries — not built out in this POC yet.`}
-    </p>
-    <div class="btn-row" style="justify-content:flex-start;">
-      <a href="existing-itineraries.html"><button class="btn ghost">View Existing Itineraries →</button></a>
+    <div class="card">
+      <div class="card-title">Existing Itineraries</div>
+      <p style="font-size:13.5px;color:var(--slate);margin:0 0 14px 0;">
+        ${savedCount > 0
+          ? `You have <b>${savedCount}</b> itinerary saved — search and reopen them any time.`
+          : `Nothing saved yet — complete a costing and click "Save Itinerary" to see it here.`}
+      </p>
+      <div class="btn-row" style="justify-content:flex-start;">
+        <a href="existing-itineraries.html"><button class="btn ghost">View Existing Itineraries →</button></a>
+      </div>
     </div>
-  </div>
-`;
+  `;
 
-document.getElementById('btn-new').addEventListener('click', () => {
-  clearItinerary();
-  ensureItinerary();
-  window.location.href = 'trip-basics.html';
-});
+  document.getElementById('btn-new').addEventListener('click', () => {
+    clearItinerary();
+    ensureItinerary();
+    window.location.href = 'trip-basics.html';
+  });
 
-document.getElementById('btn-sample').addEventListener('click', async () => {
-  const sample = await loadJSON('data/sampleItinerary.json');
-  const it = blankItinerary();
-  it.tripBasics = { ...it.tripBasics, ...sample.tripBasics };
-  it._pendingHotels = sample.hotels; // resolved into full line items on hotel-costing.html load
-  it._pendingTransport = sample.transport;
-  saveItinerary(it);
-  window.location.href = 'trip-basics.html?sample=1';
-});
+  document.getElementById('btn-sample').addEventListener('click', async () => {
+    const sample = await loadJSON('data/sampleItinerary.json');
+    const it = blankItinerary();
+    it.tripBasics = { ...it.tripBasics, ...sample.tripBasics };
+    it._pendingHotels = sample.hotels; // resolved into full line items on hotel-costing.html load
+    it._pendingTransport = sample.transport;
+    saveItinerary(it);
+    window.location.href = 'trip-basics.html?sample=1';
+  });
+})();
 </script>
 </body>
 </html>

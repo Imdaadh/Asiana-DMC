@@ -164,20 +164,28 @@
   });
   document.getElementById('btn-back').addEventListener('click', () => window.location.href = 'transportation.html');
   document.getElementById('btn-preview').addEventListener('click', () => window.location.href = 'itinerary-preview.html');
-  document.getElementById('btn-generate').addEventListener('click', () => {
+  document.getElementById('btn-generate').addEventListener('click', async () => {
+    const btn = document.getElementById('btn-generate');
+    btn.disabled = true;
     const pricing = computePricing(itinerary, cfg.vehicles, cfg.pricingSettings);
-    pushSavedItinerary({
-      id: 'itn_' + Date.now(),
-      savedAt: new Date().toISOString(),
-      clientName: itinerary.tripBasics.clientName,
-      duration: nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate),
-      pax: pricing.pax,
-      cities: itinerary.hotels.map(h => h.cityName),
-      grandTotal: pricing.grandTotal,
-      perPerson: pricing.perPerson,
-      displayMode: itinerary.pricing.displayMode,
-      itinerarySnapshot: itinerary,
-    });
+    try {
+      await pushSavedItinerary({
+        id: 'itn_' + Date.now(),
+        savedAt: new Date().toISOString(),
+        clientName: itinerary.tripBasics.clientName,
+        duration: nightsDaysBetween(itinerary.tripBasics.arrivalDate, itinerary.tripBasics.departureDate),
+        pax: pricing.pax,
+        cities: itinerary.hotels.map(h => h.cityName),
+        grandTotal: pricing.grandTotal,
+        perPerson: pricing.perPerson,
+        displayMode: itinerary.pricing.displayMode,
+        itinerarySnapshot: itinerary,
+      });
+    } catch (e) {
+      toast('Could not save — make sure the server is running (npm start).');
+      btn.disabled = false;
+      return;
+    }
     clearItinerary();
     toast('Itinerary saved.');
     setTimeout(() => window.location.href = 'existing-itineraries.html', 700);

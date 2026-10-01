@@ -1,12 +1,14 @@
 /* ==========================================================================
    Costing Console — POC shared utilities
-   NOTE: This is a proof-of-concept. All "backend" logic below is fake —
-   it reads static JSON files and writes to browser localStorage only.
+   NOTE: This is a proof-of-concept. The working itinerary being built lives
+   in browser localStorage only (no server involved). Saved/completed
+   itineraries are the one exception — they're persisted by the small local
+   server in server.js to db/savedItineraries.json, which is why this file
+   is served via `npm start`, not a plain static file server.
    See CLAUDE.md at the repo root before extending this.
    ========================================================================== */
 
 const STORAGE_KEY = 'poc_current_itinerary';
-const SAVED_KEY = 'poc_saved_itineraries';
 
 /* ---------- data loading ---------- */
 async function loadJSON(path) {
@@ -65,16 +67,28 @@ function clearItinerary() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-function getSavedItineraries() {
-  const raw = localStorage.getItem(SAVED_KEY);
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch (e) { return []; }
+/* Saved itineraries live in db/savedItineraries.json on the local server
+   (see server.js) — not localStorage — so "Existing Itineraries" isn't
+   limited to one browser. Requires running the app via `npm start`. */
+async function getSavedItineraries() {
+  try {
+    const res = await fetch('/api/itineraries');
+    if (!res.ok) throw new Error('Server responded with ' + res.status);
+    return await res.json();
+  } catch (e) {
+    toast('Could not reach the itinerary server — make sure it\'s running (npm start).');
+    return [];
+  }
 }
 
-function pushSavedItinerary(record) {
-  const list = getSavedItineraries();
-  list.unshift(record);
-  localStorage.setItem(SAVED_KEY, JSON.stringify(list));
+async function pushSavedItinerary(record) {
+  const res = await fetch('/api/itineraries', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(record),
+  });
+  if (!res.ok) throw new Error('Server responded with ' + res.status);
+  return await res.json();
 }
 
 /* ---------- calculations ---------- */
@@ -84,8 +98,6 @@ function nightsDaysBetween(arrivalISO, departureISO) {
   const nights = Math.max(0, Math.round((d - a) / (1000 * 60 * 60 * 24)));
   return { nights, days: nights + 1 };
 }
-
-const OCC_CAPACITY = { Single: 1, Double: 2, Triple: 3 };
 
 function roomsNeeded(pax, occupancy) {
   if (occupancy === 'Single') return pax;
@@ -103,10 +115,6 @@ function computeHotelTotal(hotel) {
 
 function computeAccommodationSubtotal(itinerary) {
   return itinerary.hotels.reduce((sum, h) => sum + h.total, 0);
-}
-
-function roomMixCapacity(roomMix) {
-  return roomMix.reduce((sum, r) => sum + r.rooms * (OCC_CAPACITY[r.occupancy] || 0), 0);
 }
 
 function hotelsNightsTotal(itinerary) {
@@ -257,7 +265,7 @@ function toast(msg) {
 
 /* ---------- chrome (sidebar + topbar + stepper) ---------- */
 function renderChrome(mountId, opts) {
-  const { activeStep, breadcrumbSub } = opts; // activeStep: 1-4, or 0 for dashboard/stub pages
+  const { activeStep, breadcrumbSub, activeNav } = opts; // activeStep: 1-4, or 0 for dashboard/existing-itineraries; activeNav: 'dashboard' | 'existing' (only meaningful when activeStep is 0)
   const steps = [
     { n: 1, label: 'Trip Basics', href: 'trip-basics.html' },
     { n: 2, label: 'Hotel Costing', href: 'hotel-costing.html' },
@@ -286,9 +294,9 @@ function renderChrome(mountId, opts) {
         </div>
       </div>
       <div class="nav-section-label">Workspace</div>
-      <a href="index.html"><div class="nav-item ${activeStep === 0 ? 'active' : ''}"><span class="dot"></span>Dashboard</div></a>
+      <a href="index.html"><div class="nav-item ${activeNav === 'dashboard' ? 'active' : ''}"><span class="dot"></span>Dashboard</div></a>
       <a href="trip-basics.html"><div class="nav-item ${activeStep >= 1 ? 'active' : ''}"><span class="dot"></span>New Inquiry / Costing</div></a>
-      <a href="existing-itineraries.html"><div class="nav-item"><span class="dot"></span>Existing Itineraries</div></a>
+      <a href="existing-itineraries.html"><div class="nav-item ${activeNav === 'existing' ? 'active' : ''}"><span class="dot"></span>Existing Itineraries</div></a>
       <div class="nav-section-label">Admin</div>
       <div class="nav-item admin-only"><span class="dot"></span>Cities &amp; Hotels</div>
       <div class="nav-item admin-only"><span class="dot"></span>Vehicles &amp; Rates</div>

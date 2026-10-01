@@ -17,9 +17,13 @@ New Inquiry"** to try it from a blank form.
 ## Run locally
 
 ```bash
-python3 -m http.server 8000
+npm install   # first time only
+npm start
 ```
 Then open `http://localhost:8000`.
 
 (Opening `index.html` directly by double-clicking it won't work — the pages
-fetch JSON data files, which browsers block over `file://`.)
+fetch JSON data files, which browsers block over `file://`. A plain static
+server works for most of the app too, but Save Itinerary / Existing
+Itineraries specifically need `npm start`, since those are backed by a small
+local server — see [`CLAUDE.md`](./CLAUDE.md) for why.)

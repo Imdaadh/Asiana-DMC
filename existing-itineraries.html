@@ -11,18 +11,19 @@
 
 <script src="assets/app.js"></script>
 <script>
-renderChrome('chrome-mount', { activeStep: 0, breadcrumbSub: 'Existing Itineraries' });
+(async function () {
+renderChrome('chrome-mount', { activeStep: 0, activeNav: 'existing', breadcrumbSub: 'Existing Itineraries' });
 const content = document.getElementById('page-content');
 content.style.gridTemplateColumns = '1fr';
 content.style.maxWidth = '900px';
 
-const saved = getSavedItineraries();
+const saved = await getSavedItineraries();
 
 content.innerHTML = `
   <h1 class="page-title">Existing Itineraries</h1>
-  <p class="page-sub">This is a stub for the POC — no search/filter yet. In the real product this becomes the "1 Night Kandy + 2 Nights Bentota"-style filtered search described in the proposal doc.</p>
+  <p class="page-sub">Search saved itineraries — "Use This" loads one as a new draft to tweak and continue, "View" opens a read-only copy.</p>
 
-  <div class="stub-banner">This page is a placeholder. Filtering by city/nights combo, package type, and meal plan is not built in this POC — see CLAUDE.md.</div>
+  <div class="stub-banner">This list is stored in db/savedItineraries.json on the local server (via server.js) — shared across browsers on this machine, but still just a JSON file, not a real database. Filtering here is a simple text match; the city/nights-combo style search described in the proposal doc is real future work.</div>
 
   <div class="card">
     <div class="card-title">Reference Example (read-only, seeded)</div>
@@ -42,7 +43,12 @@ content.innerHTML = `
   </div>
 
   <div class="card">
-    <div class="card-title">Saved This Session <span style="font-weight:500;color:var(--slate);font-size:12px;">(${saved.length})</span></div>
+    <div class="card-title">
+      Saved Itineraries <span style="font-weight:500;color:var(--slate);font-size:12px;" id="saved-count">(${saved.length})</span>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
+      <input id="f-search" placeholder="Search by client name or city…" style="border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13.5px;">
+    </div>
     <div id="saved-wrap"></div>
   </div>
 
@@ -51,14 +57,21 @@ content.innerHTML = `
   </div>
 `;
 
-const wrap = document.getElementById('saved-wrap');
-if (saved.length === 0) {
-  wrap.innerHTML = `<div class="empty-state"><div class="big">Nothing saved yet</div>Complete a costing flow and click "Save Itinerary" on the Pricing Summary screen — it'll show up here (this browser only; stored in localStorage, not a real database).</div>`;
-} else {
+function renderSaved(list) {
+  const wrap = document.getElementById('saved-wrap');
+  document.getElementById('saved-count').textContent = `(${list.length}${list.length !== saved.length ? ` of ${saved.length}` : ''})`;
+  if (saved.length === 0) {
+    wrap.innerHTML = `<div class="empty-state"><div class="big">Nothing saved yet</div>Complete a costing flow and click "Save Itinerary" on the Pricing Summary screen — it'll show up here.</div>`;
+    return;
+  }
+  if (list.length === 0) {
+    wrap.innerHTML = `<div class="empty-state"><div class="big">No matches</div>Try a different client name or city.</div>`;
+    return;
+  }
   wrap.innerHTML = `
     <table class="data">
-      <tr><th>Client</th><th>Duration</th><th>Cities</th><th>Pax</th><th class="right">Grand Total</th><th class="right">Per Person</th></tr>
-      ${saved.map(s => `
+      <tr><th>Client</th><th>Duration</th><th>Cities</th><th>Pax</th><th class="right">Grand Total</th><th class="right">Per Person</th><th></th></tr>
+      ${list.map(s => `
         <tr>
           <td>${s.clientName}</td>
           <td>${s.duration.nights}N / ${s.duration.days}D</td>
@@ -66,9 +79,34 @@ if (saved.length === 0) {
           <td>${s.pax}</td>
           <td class="right num">${fmtUsd(s.grandTotal)}</td>
           <td class="right num">${fmtUsd(s.perPerson)}</td>
+          <td class="right" style="white-space:nowrap;">
+            <button class="icon-btn use-btn" data-id="${s.id}">Use This →</button>
+            <a href="itinerary-preview.html?savedId=${encodeURIComponent(s.id)}"><button class="icon-btn">View</button></a>
+          </td>
         </tr>`).join('')}
     </table>`;
+  wrap.querySelectorAll('.use-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const record = saved.find(r => r.id === btn.dataset.id);
+      if (!record) return;
+      const cloned = JSON.parse(JSON.stringify(record.itinerarySnapshot));
+      delete cloned.previewOverrides;
+      saveItinerary(cloned);
+      toast(`Loaded ${record.clientName}'s itinerary as a new draft — update client name/dates as needed.`);
+      setTimeout(() => window.location.href = 'trip-basics.html', 500);
+    });
+  });
 }
+
+document.getElementById('f-search').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  const filtered = !q ? saved : saved.filter(s =>
+    s.clientName.toLowerCase().includes(q) || s.cities.some(c => c.toLowerCase().includes(q)));
+  renderSaved(filtered);
+});
+
+renderSaved(saved);
+})();
 </script>
 </body>
 </html>

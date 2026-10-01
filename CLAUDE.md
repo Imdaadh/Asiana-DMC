@@ -10,6 +10,9 @@ everything in here as disposable scaffolding, not a foundation to build on top o
 If you (Claude Code) are picking this up: **do not** start "productionizing" this —
 adding a real backend, a database, auth, etc. — unless explicitly asked. The point
 right now is to iterate on the *flow and calculations*, cheaply, in plain HTML.
+The one exception, explicitly asked for and already built, is `server.js` — see
+"Local server" below; don't take that as license to add anything further backend-y
+without being asked the same way.
 
 Background: this POC follows an earlier requirements/user-flow proposal document
 (a Word doc with flowcharts and wireframes) that isn't in this repo. If you need
@@ -39,16 +42,31 @@ A 5-stage costing wizard, in plain HTML/CSS/vanilla JS, no build step:
    Superior/Luxury) → Room Count (required, never silently defaulted to 0) →
    Rate (auto-fills from Config, editable) → an optional **per-room meal plan
    override** (defaults to the hotel-level meal plan unless overridden). Rows
-   stage in a pending list with a live "N pax covered" rollup before being
-   committed to the itinerary as one hotel entry. Nights are checked
-   **preemptively**: a live hint shows how many trip nights are still
-   unallocated, and "+ Add to Itinerary" is blocked outright (not just flagged
-   afterward) if the Nights entered for this city would push the total past
-   the trip's length. Two further live validations gate "Save & Continue":
-   every hotel's room mix must cover full trip pax, and nights across all
-   hotel entries must sum to the trip's total nights — both checked
-   continuously, not just on click, with the Continue button disabled (not
-   just an alert) until both pass.
+   stage in a pending list before being committed to the itinerary as one
+   hotel entry. **There is deliberately no validation tying room count to pax**
+   — an earlier revision blocked adding rooms whose combined capacity didn't
+   exactly match trip pax (e.g. "covers 5, but this trip has 7"), which turned
+   out to be wrong for how this business actually books: children commonly
+   share a room with adults rather than requiring their own capacity, and
+   operators sometimes deliberately book more rooms than the strict headcount
+   implies (e.g. 2 Double rooms for a party of 3). The room mix is purely
+   informational now — enter whatever room counts the booking actually needs.
+   Nights are the one thing still checked, and checked **preemptively**: a
+   live hint shows how many trip nights are still unallocated, and "+ Add to
+   Itinerary" is blocked outright (not just flagged afterward) if the Nights
+   entered for this city would push the total past the trip's length. "Save &
+   Continue" is separately gated on total nights across all hotel entries
+   summing to the trip's total nights, checked continuously, with the button
+   disabled (not just an alert) until it passes.
+
+   A **Self Booking** checkbox sits above the City/Hotel fields for the case
+   where the client arranges their own hotel for a leg of the trip (e.g. they
+   book Nuwara Eliya themselves). Checking it collapses the form to just
+   City + Nights — no hotel, meal plan, or room mix — and commits a hotel
+   entry with `$0` accommodation cost that still counts toward the trip's
+   night total (so nights-coverage validation still balances) and still
+   implies mileage between cities on the Transportation stage, since that's
+   computed independently from distance segments, not from hotel entries.
 3. **Transportation** (`transportation.html`) — add distance segments one at a
    time (they sum live); vehicle auto-suggested from pax count (overridable,
    now including **Mini Coach** and **Maxi Coach** tiers above the original
@@ -85,9 +103,10 @@ A 5-stage costing wizard, in plain HTML/CSS/vanilla JS, no build step:
    that wasn't finalized when this was built.
 
 State for the itinerary currently being built is carried between these five
-pages via `localStorage` (key `poc_current_itinerary`) — there is no backend.
-Clicking "Save Itinerary" on the Pricing Summary page pushes a snapshot into
-`localStorage` under `poc_saved_itineraries` and clears the working itinerary.
+pages via `localStorage` (key `poc_current_itinerary`) — no server involved.
+Clicking "Save Itinerary" on the Pricing Summary page persists a snapshot via
+the local server (see "Local server" below) into `db/savedItineraries.json`
+and clears the working itinerary.
 
 `index.html` is the dashboard. It has two entry points into the flow:
 - **Start New Inquiry (Blank)** — empty itinerary.
@@ -101,10 +120,19 @@ Clicking "Save Itinerary" on the Pricing Summary page pushes a snapshot into
   validation will flag this exactly as it would for a real under-allocated
   itinerary; that's expected, not a bug, given the sample's documented scope.
 
-`existing-itineraries.html` is an intentional **stub** — it shows one seeded
-read-only reference row plus whatever's been saved this browser session. It
-does **not** implement the city/nights-combo filtered search described in the
-original proposal. That's real future work, not part of this POC's scope.
+`existing-itineraries.html` shows one seeded read-only reference row plus
+every saved itinerary, with a **text search** box (matches client name or
+city, filters the saved list live) and two actions per row: **View** reopens
+`itinerary-preview.html?savedId=<id>` in a dedicated **read-only mode** — no
+`contenteditable`, no day-route dropdowns, nothing writes back to
+`poc_current_itinerary` or the saved record itself — and **Use This** is the
+"reuse an existing itinerary" flow from the original proposal: it deep-clones
+that record's `itinerarySnapshot` (minus `previewOverrides`, so the preview
+regenerates fresh) into `poc_current_itinerary` and sends the operator to
+Stage 1 to update client name/dates and continue from there with hotels/
+transport already filled in. It still does **not** implement the city/nights-combo
+structured search described in the original proposal (this is a plain
+substring filter) — that's real future work, not part of this POC's scope.
 
 ---
 
@@ -124,10 +152,10 @@ All of this is meant to be thrown away or replaced once the real build starts:
 - **No authentication / SSO.** The page just loads straight into the
   dashboard. There's a cosmetic "Operator" badge in the sidebar and nothing
   else.
-- **No backend, no database.** All calculation happens client-side in
-  `assets/app.js`. State persists only via browser `localStorage`, only in
-  the browser that created it — nothing is shared across users or devices.
-- **"Existing Itineraries" is a static stub**, not a real searchable list.
+- **No real backend or database** beyond the one narrow exception below.
+  All calculation happens client-side in `assets/app.js`. The itinerary
+  *currently being built* persists only via browser `localStorage`, only in
+  the browser that created it.
 - **Itinerary Preview boilerplate is generic**, not the real agency's actual
   legal/commercial text, entrance-fee prices, or tour descriptions — it's
   illustrative content shaped like the real reference document, not a copy
@@ -135,6 +163,37 @@ All of this is meant to be thrown away or replaced once the real build starts:
   Mini/Maxi Coach capacities/rates are similarly illustrative sample figures.
 - **Hosting is GitHub Pages** (static files only) — fine for a click-through
   demo, meaningless as a signal for what the real product's hosting should be.
+
+## Local server (server.js) — the one deliberate exception to "no backend"
+
+Saved itineraries were originally localStorage-only (like everything else),
+which meant "Existing Itineraries" only ever showed what one specific browser
+had saved. That was explicitly asked to change to a real file on disk that
+updates whenever an itinerary is saved — the only way to do that for real is
+a server, so `server.js` exists: a minimal Express app with exactly two
+routes (`GET /api/itineraries`, `POST /api/itineraries`), reading and writing
+`db/savedItineraries.json`, and serving the rest of the site as static files
+(`express.static`) so `npm start` is the one command that runs everything.
+
+This is a narrow, deliberate exception — it exists **only** to persist saved
+itineraries. It does not calculate anything, does not touch the working
+itinerary in `localStorage`, and shouldn't be extended to cover other
+POC state without being asked, the same way this was. `assets/app.js`'s
+`getSavedItineraries()`/`pushSavedItinerary()` are the only functions that
+talk to it (both `async`, calling `fetch('/api/itineraries')`); every page
+that calls them (`index.html`, `existing-itineraries.html`,
+`pricing-summary.html`, `itinerary-preview.html`) awaits them and shows a
+toast if the server isn't reachable, rather than failing silently.
+
+**Consequence for deployment:** GitHub Pages (static-file-only hosting) can
+serve every page and JSON file in this repo, but it cannot run `server.js` —
+so on the live GitHub Pages URL, "Save Itinerary" and "Existing Itineraries"
+will show a "could not reach the itinerary server" toast and an empty list.
+Everything else (Stages 1–4, itinerary preview for the itinerary currently
+being built) still works fine there, since none of that touches the server.
+Running this for real in production would need a host that runs Node
+(Render, Railway, a small VPS, etc.) — not decided, not this POC's job to
+decide, consistent with everything else in "What happens later" below.
 
 ## Documented but explicitly NOT implemented: Google Maps distance auto-calc
 
@@ -208,7 +267,10 @@ don't reintroduce it to Stage 2/3's cost-building figures.
   hotelName, star, nights, mealPlanId, mealPlanName, roomMix: [{ occupancy,
   category, rooms, rate, mealPlanId, mealPlanName, total }], total }`. Each
   `roomMix` row's `mealPlanId`/`mealPlanName` defaults to the hotel-level meal
-  plan unless explicitly overridden per row.
+  plan unless explicitly overridden per row. A self-booked entry instead has
+  `selfBooking: true`, `hotelId/hotelName/star/mealPlanId/mealPlanName: null`,
+  `roomMix: []`, `total: 0` — `nights` is still set and still counts toward
+  the trip's night total.
 - `itinerary.transport` — `{ mileageSegments: [{km,label}], vehicleId,
   miscExpenses: [{description, amountUsd}], rateOverrideLkrPerKm,
   driverBataOverrideLkrPerDay, guideFeeOverrideLkrPerDay }`. The three
@@ -231,45 +293,59 @@ don't reintroduce it to Stage 2/3's cost-building figures.
 ```
 /index.html                 Dashboard — start new / load sample / existing itineraries
 /trip-basics.html           Stage 1 — trip basics + Per Person/Whole Group toggle
-/hotel-costing.html         Stage 2 — room-mix builder + live validation
+/hotel-costing.html         Stage 2 — room-mix builder + live validation + self-booking
 /transportation.html        Stage 3 — mileage, vehicle, driver bata, guide fee, misc expenses
 /pricing-summary.html       Stage 4 — receipt build-up + final display toggle
-/itinerary-preview.html     Stage 5 — fully editable print-ready client document
-/existing-itineraries.html  Stub list page
+/itinerary-preview.html     Stage 5 — fully editable print-ready client document,
+                             also a read-only viewer via ?savedId=<id>
+/existing-itineraries.html  Search + reopen saved itineraries
 /assets/styles.css          Shared design system (single file, plain CSS) —
                              used by the console pages; itinerary-preview.html
                              layers its own document-specific <style> on top
 /assets/app.js              Shared logic: data loading, localStorage state,
                              all cost/markup calculations, display-mode
                              helper, day-by-day plan generation, shared page
-                             chrome (sidebar + topbar + stepper)
-/data/*.json                All sample master data + pricing settings +
-                             the pre-fillable sample inquiry + itinerary
-                             preview content (tourTemplates.json — multiple
-                             route options per city, inclusionsExclusions.json,
-                             entranceFees.json — priced by nationality)
+                             chrome (sidebar + topbar + stepper), and the
+                             fetch() calls to the local server (below)
+/data/*.json                Static seed/config data + pricing settings + the
+                             pre-fillable sample inquiry + itinerary preview
+                             content (tourTemplates.json — multiple route
+                             options per city, inclusionsExclusions.json,
+                             entranceFees.json — priced by nationality) —
+                             all read-only, hand-edited, never written by the app
+/server.js                  Local server — see "Local server" above
+/package.json               Declares the one dependency (express) + `npm start`
+/db/savedItineraries.json   Written by server.js, gitignored — the real,
+                             on-disk saved-itineraries store
 ```
 
-There is no build step, no bundler, no package.json. Every page is a plain
-`.html` file that loads `assets/styles.css` and `assets/app.js` directly.
+Every page is still a plain `.html` file loading `assets/styles.css` and
+`assets/app.js` directly — no build step, no bundler, no framework, no JSX/TS
+to compile. `package.json` exists solely to install `express` and run
+`server.js`; it isn't a build tool here.
 
 ## How to run locally
 
-Because pages `fetch()` the JSON files in `/data/`, opening `index.html`
-directly via `file://` will fail (browsers block `fetch` on `file://` origins).
-Serve the folder over HTTP instead, e.g.:
-
 ```bash
-npx serve .
-# or
-python3 -m http.server 8000
+npm install   # first time only
+npm start
 ```
 
-Then open the printed localhost URL.
+Then open `http://localhost:8000`. This serves every page **and** the
+`/api/itineraries` routes `server.js` needs for Save/Existing Itineraries —
+opening `index.html` directly via `file://`, or serving the folder with a
+plain static server (`python3 -m http.server`, `npx serve .`), will load the
+pages fine but Save Itinerary / Existing Itineraries will fail with a
+"could not reach the itinerary server" toast, since there's no `/api/*`
+backend behind them in that case.
 
 ## Deployment
 
-This is deployed as a static site via **GitHub Pages**, using the GitHub
-Actions workflow at `.github/workflows/deploy.yml` (Pages source set to
-"GitHub Actions" in repo settings) — it uploads the repo root as-is on every
-push to `main`. No build step is needed.
+Static pages are deployed via **GitHub Pages**, using the GitHub Actions
+workflow at `.github/workflows/deploy.yml` (Pages source set to "GitHub
+Actions" in repo settings) — it uploads the repo root as-is on every push to
+`main`. **This does not run `server.js`** — GitHub Pages can't run Node — so
+on the live GitHub Pages URL, Save Itinerary / Existing Itineraries behave as
+described in "Local server" above (toast + empty list) while every other
+stage works normally. Running the server in production needs a host that
+runs Node; not decided yet, see "What happens later."

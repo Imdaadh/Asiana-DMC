@@ -1,0 +1,12 @@
+{
+  "name": "asiana-dmc-costing-poc",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local server for the Travel Itinerary Costing POC — serves the static site and persists saved itineraries to db/savedItineraries.json.",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
